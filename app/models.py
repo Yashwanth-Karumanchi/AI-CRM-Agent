@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional, List
 from enum import Enum
-from datetime import datetime
+from datetime import datetime, date
 
 class Priority(str, Enum):
     low = "Low"
@@ -33,6 +33,13 @@ class ClientCreate(BaseModel):
             raise ValueError("Name cannot be empty")
         return v.strip()
 
+    @field_validator("company", "phone", "service", "notes", mode="before")
+    @classmethod
+    def strip_strings(cls, v):
+        if isinstance(v, str):
+            return v.strip() or None
+        return v
+
 class ClientUpdate(BaseModel):
     name: Optional[str] = None
     email: Optional[EmailStr] = None
@@ -42,8 +49,48 @@ class ClientUpdate(BaseModel):
     priority: Optional[Priority] = None
     notes: Optional[str] = None
 
+    @field_validator("name", mode="before")
+    @classmethod
+    def name_not_empty(cls, v):
+        if v is not None and not str(v).strip():
+            raise ValueError("Name cannot be empty")
+        return v
+
 class StageUpdate(BaseModel):
     stage: Stage
+
+class FollowUpUpdate(BaseModel):
+    follow_up_date: str
+
+    @field_validator("follow_up_date")
+    @classmethod
+    def must_be_valid_date(cls, v):
+        try:
+            datetime.strptime(v, "%Y-%m-%d")
+        except ValueError:
+            raise ValueError("follow_up_date must be YYYY-MM-DD")
+        return v
+
+class BulkStageUpdate(BaseModel):
+    client_ids: List[str]
+    stage: Stage
+
+    @field_validator("client_ids")
+    @classmethod
+    def must_not_be_empty(cls, v):
+        if not v:
+            raise ValueError("client_ids cannot be empty")
+        return v
+
+class BulkArchive(BaseModel):
+    client_ids: List[str]
+
+    @field_validator("client_ids")
+    @classmethod
+    def must_not_be_empty(cls, v):
+        if not v:
+            raise ValueError("client_ids cannot be empty")
+        return v
 
 class EmailDraft(BaseModel):
     client_id: str
@@ -82,8 +129,63 @@ class AgentChat(BaseModel):
             raise ValueError("Message cannot be empty")
         return v.strip()
 
+class AgentDraftEmail(BaseModel):
+    client_id: str
+    instruction: str
+    send: bool = False
+
+    @field_validator("instruction")
+    @classmethod
+    def not_empty(cls, v):
+        if not v.strip():
+            raise ValueError("Instruction cannot be empty")
+        return v.strip()
+
+class DeleteDraftInput(BaseModel):
+    draft_id: str
+
 class APIResponse(BaseModel):
     ok: bool
     message: str
     data: Optional[dict] = None
     error: Optional[str] = None
+    
+class ScheduleMeetingInput(BaseModel):
+    client_id: str
+    title: Optional[str] = None
+    start_time: str
+    end_time: str
+    description: Optional[str] = None
+    location: Optional[str] = None
+    invite_client: bool = False
+    meeting_notes: Optional[str] = None
+
+    @field_validator("start_time", "end_time")
+    @classmethod
+    def must_be_iso(cls, v):
+        try:
+            datetime.fromisoformat(v.replace("Z", "+00:00"))
+        except ValueError:
+            raise ValueError(
+                "Must be ISO 8601 format: "
+                "2026-06-15T15:00:00-06:00"
+            )
+        return v
+
+class UpdateMeetingInput(BaseModel):
+    title: Optional[str] = None
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+    description: Optional[str] = None
+    location: Optional[str] = None
+    meeting_notes: Optional[str] = None
+
+class MeetingNotesInput(BaseModel):
+    notes: str
+
+    @field_validator("notes")
+    @classmethod
+    def not_empty(cls, v):
+        if not v.strip():
+            raise ValueError("Notes cannot be empty")
+        return v.strip()
