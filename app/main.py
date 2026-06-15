@@ -47,6 +47,17 @@ from app.agent import (
     chat
 )
 
+from app.agent import (
+    extract_client_from_pdf,
+    analyze_client,
+    draft_email,
+    chat,
+    score_single_client,
+    score_entire_pipeline,
+    find_similar_clients,
+    get_daily_recommendations
+)
+
 logger = get_logger(__name__)
 
 app = FastAPI(
@@ -810,5 +821,175 @@ async def get_meetings_for_client(
         }
     except ValueError as e:
         raise HTTPException(404, str(e))
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+# ─── Lead Scoring & Recommendations ───────────────────
+
+@app.get("/clients/{client_id}/score", tags=["Intelligence"])
+async def score_client_endpoint(
+    client_id: str,
+    username: str = Depends(verify_credentials)
+):
+    """
+    AI scores a client on lead quality, churn risk,
+    sentiment, opportunity value and recommends actions
+    """
+    try:
+        client = await sheets.require_client(client_id)
+        score = await score_single_client(client)
+
+        await sheets.log_activity(
+            client_id,
+            "CLIENT_SCORED",
+            f"Lead score: {score.get('lead_score')}/10 | "
+            f"Churn risk: {score.get('churn_risk')} | "
+            f"Close probability: {score.get('estimated_close_probability')}%",
+            "SUCCESS",
+            ""
+        )
+
+        await sheets.log_agent(
+            "LEAD_SCORING",
+            client_id,
+            str(score)
+        )
+
+        return {
+            "ok": True,
+            "client_id": client_id,
+            "client_name": client.get("name"),
+            "score": score
+        }
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    except Exception as e:
+        logger.error(f"Scoring failed: {e}")
+        raise HTTPException(500, str(e))
+
+@app.get("/pipeline/score", tags=["Intelligence"])
+async def score_pipeline_endpoint(
+    username: str = Depends(verify_credentials)
+):
+    """
+    AI analyzes entire pipeline health,
+    identifies at-risk clients and stalled deals
+    """
+    try:
+        clients = await sheets.get_all_clients(limit=1000)
+
+        if not clients:
+            raise HTTPException(400, "No clients in pipeline")
+
+        analysis = await score_entire_pipeline(clients)
+
+        await sheets.log_agent(
+            "PIPELINE_SCORING",
+            f"Scored {len(clients)} clients",
+            str(analysis)
+        )
+
+        return {
+            "ok": True,
+            "total_clients_analyzed": len(clients),
+            "analysis": analysis
+        }
+    except Exception as e:
+        logger.error(f"Pipeline scoring failed: {e}")
+        raise HTTPException(500, str(e))
+
+@app.get("/clients/{client_id}/similar", tags=["Intelligence"])
+async def find_similar_clients_endpoint(
+    client_id: str,
+    username: str = Depends(verify_credentials)
+):
+    """Find clients similar to a target client"""
+    try:
+        target = await sheets.require_client(client_id)
+        all_clients = await sheets.get_all_clients(limit=1000)
+
+        result = await find_similar_clients(target, all_clients)
+
+        return {
+            "ok": True,
+            "client_id": client_id,
+            "client_name": target.get("name"),
+            **result
+        }
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+@app.get("/recommendations/daily", tags=["Intelligence"])
+async def daily_recommendations(
+    username: str = Depends(verify_credentials)
+):
+    """
+    AI recommends which clients to follow up with today
+    and suggests a daily action plan
+    """
+    try:
+        clients = await sheets.get_all_clients(limit=1000)
+
+        if not clients:
+            raise HTTPException(400, "No clients found")
+
+        recommendations = await get_daily_recommendations(clients)
+
+        await sheets.log_agent(
+            "DAILY_RECOMMENDATIONS",
+            f"Generated for {len(clients)} clients",
+            str(recommendations)
+        )
+
+        return {
+            "ok": True,
+            "total_clients": len(clients),
+            "recommendations": recommendations
+        }
+    except Exception as e:
+        logger.error(f"Daily recommendations failed: {e}")
+        raise HTTPException(500, str(e))
+
+@app.get("/recommendations/stale", tags=["Intelligence"])
+async def stale_clients(
+    days_inactive: int = Query(14, ge=1, le=365),
+    username: str = Depends(verify_credentials)
+):
+    """
+    Find clients with no activity for X days
+    """
+    try:
+        from datetime import datetime, timedelta
+
+        all_activities = await sheets.search_activities(
+            limit=1000
+        )
+
+        cutoff = (
+            datetime.utcnow() - timedelta(days=days_inactive)
+        ).isoformat()
+
+        active_client_ids = set(
+            a["client_id"]
+            for a in all_activities
+            if a.get("timestamp", "") >= cutoff
+        )
+
+        all_clients = await sheets.get_all_clients(limit=1000)
+
+        stale = [
+            c for c in all_clients
+            if c["client_id"] not in active_client_ids
+            and c.get("stage") not in ["Won", "Lost"]
+        ]
+
+        return {
+            "ok": True,
+            "days_inactive": days_inactive,
+            "stale_count": len(stale),
+            "stale_clients": stale
+        }
     except Exception as e:
         raise HTTPException(500, str(e))

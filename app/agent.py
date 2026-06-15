@@ -4,6 +4,13 @@ from app.config import get_settings
 from app.logger import get_logger
 from app.services import sheets
 
+from app.services.scoring import (
+    score_client,
+    score_pipeline,
+    detect_similar_clients,
+    get_follow_up_recommendations
+)
+
 logger = get_logger(__name__)
 
 def get_gemini_client():
@@ -173,3 +180,28 @@ async def chat(
         contents=prompt
     )
     return response.text.strip()
+
+async def score_single_client(client: dict) -> dict:
+    """Score a single client using AI"""
+    model = get_gemini_client()
+    return await score_client(client, model)
+
+async def score_entire_pipeline(clients: list) -> dict:
+    """Score entire pipeline using AI"""
+    model = get_gemini_client()
+    return await score_pipeline(clients, model)
+
+async def find_similar_clients(
+    target_client: dict,
+    all_clients: list
+) -> dict:
+    """Find clients similar to target"""
+    model = get_gemini_client()
+    return await detect_similar_clients(
+        target_client, all_clients, model
+    )
+
+async def get_daily_recommendations(clients: list) -> dict:
+    """Get AI follow-up recommendations for today"""
+    model = get_gemini_client()
+    return await get_follow_up_recommendations(clients, model)
