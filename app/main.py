@@ -2,6 +2,12 @@ from fastapi import (
     FastAPI, Depends, UploadFile,
     File, HTTPException, Query
 )
+from app.services.reports import (
+    generate_weekly_report,
+    generate_monthly_report,
+    generate_client_acquisition_report,
+    generate_agent_activity_report
+)
 from app.services.calendar import (
     schedule_meeting,
     get_upcoming_meetings,
@@ -1205,4 +1211,109 @@ async def ai_generate_proposal(
         raise HTTPException(404, str(e))
     except Exception as e:
         logger.error(f"AI proposal failed: {e}")
+        raise HTTPException(500, str(e))
+
+# ─── Advanced Reports ──────────────────────────────────
+
+@app.get("/reports/weekly", tags=["Reports"])
+async def weekly_report(
+    username: str = Depends(verify_credentials)
+):
+    """Download weekly performance report"""
+    try:
+        clients = await sheets.get_all_clients(limit=1000)
+        activities = await sheets.search_activities(limit=500)
+        pipeline = await sheets.get_pipeline_summary()
+
+        report_bytes = generate_weekly_report(
+            clients, activities, pipeline
+        )
+
+        return Response(
+            content=report_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={
+                "Content-Disposition": "attachment; filename=weekly_report.docx"
+            }
+        )
+    except Exception as e:
+        logger.error(f"Weekly report failed: {e}")
+        raise HTTPException(500, str(e))
+
+@app.get("/reports/monthly", tags=["Reports"])
+async def monthly_report(
+    month: Optional[str] = Query(None),
+    username: str = Depends(verify_credentials)
+):
+    """Download monthly pipeline report"""
+    try:
+        clients = await sheets.get_all_clients(limit=1000)
+        activities = await sheets.search_activities(limit=1000)
+        pipeline = await sheets.get_pipeline_summary()
+
+        report_bytes = generate_monthly_report(
+            clients, activities, pipeline, month
+        )
+
+        return Response(
+            content=report_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={
+                "Content-Disposition": "attachment; filename=monthly_report.docx"
+            }
+        )
+    except Exception as e:
+        logger.error(f"Monthly report failed: {e}")
+        raise HTTPException(500, str(e))
+
+@app.get("/reports/acquisition", tags=["Reports"])
+async def acquisition_report(
+    username: str = Depends(verify_credentials)
+):
+    """Download client acquisition report"""
+    try:
+        clients = await sheets.get_all_clients(limit=1000)
+
+        report_bytes = generate_client_acquisition_report(
+            clients
+        )
+
+        return Response(
+            content=report_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={
+                "Content-Disposition": "attachment; filename=acquisition_report.docx"
+            }
+        )
+    except Exception as e:
+        logger.error(f"Acquisition report failed: {e}")
+        raise HTTPException(500, str(e))
+
+@app.get("/reports/agent-activity", tags=["Reports"])
+async def agent_activity_report(
+    username: str = Depends(verify_credentials)
+):
+    """Download agent activity report"""
+    try:
+        activities = await sheets.search_activities(
+            limit=1000
+        )
+
+        spreadsheet = sheets.get_spreadsheet()
+        logs_sheet = spreadsheet.worksheet("Agent Logs")
+        agent_logs = logs_sheet.get_all_records()
+
+        report_bytes = generate_agent_activity_report(
+            activities, agent_logs
+        )
+
+        return Response(
+            content=report_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={
+                "Content-Disposition": "attachment; filename=agent_activity_report.docx"
+            }
+        )
+    except Exception as e:
+        logger.error(f"Agent report failed: {e}")
         raise HTTPException(500, str(e))

@@ -1,0 +1,461 @@
+from docx import Document
+from docx.shared import Inches, Pt
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+import io
+from datetime import datetime, date, timedelta
+from typing import List, Optional
+from app.logger import get_logger
+
+logger = get_logger(__name__)
+
+def _add_section(doc, title, content):
+    doc.add_heading(title, level=1)
+    doc.add_paragraph(content)
+    doc.add_paragraph()
+
+def _add_table(doc, headers, rows):
+    table = doc.add_table(rows=0, cols=len(headers))
+    table.style = "Table Grid"
+
+    header_row = table.add_row().cells
+    for i, h in enumerate(headers):
+        header_row[i].text = h
+        header_row[i].paragraphs[0].runs[0].bold = True
+
+    for row_data in rows:
+        row = table.add_row().cells
+        for i, val in enumerate(row_data):
+            row[i].text = str(val)
+
+    doc.add_paragraph()
+    return table
+
+def generate_weekly_report(
+    clients: List[dict],
+    activities: List[dict],
+    pipeline_summary: dict,
+    week_start: Optional[str] = None,
+    week_end: Optional[str] = None
+) -> bytes:
+    """Generate weekly performance report"""
+    doc = Document()
+
+    for section in doc.sections:
+        section.top_margin = Inches(1)
+        section.bottom_margin = Inches(1)
+        section.left_margin = Inches(1.25)
+        section.right_margin = Inches(1.25)
+
+    if not week_start:
+        today = date.today()
+        week_start = (
+            today - timedelta(days=today.weekday())
+        ).strftime("%B %d, %Y")
+        week_end = (
+            today - timedelta(days=today.weekday()) +
+            timedelta(days=6)
+        ).strftime("%B %d, %Y")
+
+    # Title
+    title = doc.add_heading("WEEKLY PERFORMANCE REPORT", 0)
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    subtitle = doc.add_paragraph(
+        f"Week of {week_start} — {week_end}\n"
+        f"Generated: {datetime.now().strftime('%B %d, %Y %I:%M %p')}"
+    )
+    subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    doc.add_paragraph()
+
+    # Key Metrics
+    doc.add_heading("KEY METRICS", level=1)
+
+    won = sum(
+        1 for c in clients if c.get("stage") == "Won"
+    )
+    lost = sum(
+        1 for c in clients if c.get("stage") == "Lost"
+    )
+    new_clients = sum(
+        1 for c in clients if c.get("stage") == "New"
+    )
+    high_priority = sum(
+        1 for c in clients
+        if c.get("priority") == "High"
+        and c.get("stage") not in ["Won", "Lost"]
+    )
+
+    _add_table(doc,
+        ["Metric", "Value"],
+        [
+            ["Total Active Clients",
+             str(pipeline_summary.get("total_clients", 0))],
+            ["New Clients This Week", str(new_clients)],
+            ["Deals Won", str(won)],
+            ["Deals Lost", str(lost)],
+            ["High Priority Pending", str(high_priority)],
+            ["Total Activities", str(len(activities))],
+            ["Win Rate",
+             f"{round(won/(won+lost)*100)}%"
+             if (won + lost) > 0 else "N/A"]
+        ]
+    )
+
+    # Pipeline Breakdown
+    doc.add_heading("PIPELINE BREAKDOWN", level=1)
+    stage_counts = pipeline_summary.get("stage_counts", {})
+    _add_table(doc,
+        ["Stage", "Count"],
+        [[stage, str(count)]
+         for stage, count in stage_counts.items()]
+    )
+
+    # Activity Summary
+    doc.add_heading("ACTIVITY SUMMARY", level=1)
+
+    activity_types = {}
+    for a in activities:
+        t = a.get("type", "UNKNOWN")
+        activity_types[t] = activity_types.get(t, 0) + 1
+
+    _add_table(doc,
+        ["Activity Type", "Count"],
+        [[t, str(c)] for t, c in activity_types.items()]
+    )
+
+    # High Priority Clients
+    doc.add_heading("HIGH PRIORITY CLIENTS", level=1)
+    high_priority_clients = [
+        c for c in clients
+        if c.get("priority") == "High"
+        and c.get("stage") not in ["Won", "Lost"]
+    ]
+
+    if high_priority_clients:
+        _add_table(doc,
+            ["Name", "Company", "Stage", "Next Follow-up"],
+            [
+                [
+                    c.get("name", ""),
+                    c.get("company", ""),
+                    c.get("stage", ""),
+                    c.get("next_follow_up", "Not set")
+                ]
+                for c in high_priority_clients
+            ]
+        )
+    else:
+        doc.add_paragraph("No high priority clients pending.")
+
+    # Recent Activities
+    doc.add_heading("RECENT ACTIVITIES", level=1)
+    recent = activities[:20]
+
+    if recent:
+        _add_table(doc,
+            ["Timestamp", "Type", "Description"],
+            [
+                [
+                    a.get("timestamp", "")[:16],
+                    a.get("type", ""),
+                    a.get("description", "")[:50]
+                ]
+                for a in recent
+            ]
+        )
+    else:
+        doc.add_paragraph("No activities recorded.")
+
+    # Footer
+    doc.add_paragraph()
+    footer = doc.add_paragraph(
+        "Generated by AI CRM Agent"
+    )
+    footer.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+
+    logger.info("Generated weekly report")
+    return buffer.getvalue()
+
+
+def generate_monthly_report(
+    clients: List[dict],
+    activities: List[dict],
+    pipeline_summary: dict,
+    month: Optional[str] = None
+) -> bytes:
+    """Generate monthly pipeline report"""
+    doc = Document()
+
+    for section in doc.sections:
+        section.top_margin = Inches(1)
+        section.bottom_margin = Inches(1)
+        section.left_margin = Inches(1.25)
+        section.right_margin = Inches(1.25)
+
+    if not month:
+        month = datetime.now().strftime("%B %Y")
+
+    title = doc.add_heading("MONTHLY PIPELINE REPORT", 0)
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    subtitle = doc.add_paragraph(
+        f"Month: {month}\n"
+        f"Generated: {datetime.now().strftime('%B %d, %Y')}"
+    )
+    subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    doc.add_paragraph()
+
+    # Executive Summary
+    total = pipeline_summary.get("total_clients", 0)
+    won = pipeline_summary.get("won_count", 0)
+    lost = pipeline_summary.get("lost_count", 0)
+    win_rate = (
+        round(won / (won + lost) * 100)
+        if (won + lost) > 0 else 0
+    )
+
+    _add_section(
+        doc,
+        "EXECUTIVE SUMMARY",
+        f"This month the pipeline contains {total} active clients. "
+        f"Win rate stands at {win_rate}% with {won} deals won "
+        f"and {lost} deals lost. "
+        f"High priority pending: "
+        f"{pipeline_summary.get('high_priority_pending_count', 0)} clients."
+    )
+
+    # Pipeline Overview
+    doc.add_heading("PIPELINE OVERVIEW", level=1)
+    _add_table(doc,
+        ["Stage", "Count", "Percentage"],
+        [
+            [
+                stage,
+                str(count),
+                f"{round(count/total*100)}%"
+                if total > 0 else "0%"
+            ]
+            for stage, count in
+            pipeline_summary.get("stage_counts", {}).items()
+        ]
+    )
+
+    # Client List by Stage
+    doc.add_heading("CLIENTS BY STAGE", level=1)
+    stages = [
+        "New", "Contacted", "Consultation Scheduled",
+        "Proposal Sent", "Won", "Lost"
+    ]
+
+    for stage in stages:
+        stage_clients = [
+            c for c in clients
+            if c.get("stage") == stage
+        ]
+        if stage_clients:
+            doc.add_heading(stage, level=2)
+            _add_table(doc,
+                ["Name", "Company", "Priority", "Next Follow-up"],
+                [
+                    [
+                        c.get("name", ""),
+                        c.get("company", ""),
+                        c.get("priority", ""),
+                        c.get("next_follow_up", "")
+                    ]
+                    for c in stage_clients
+                ]
+            )
+
+    # Activity Breakdown
+    doc.add_heading("MONTHLY ACTIVITY BREAKDOWN", level=1)
+    activity_types = {}
+    for a in activities:
+        t = a.get("type", "UNKNOWN")
+        activity_types[t] = activity_types.get(t, 0) + 1
+
+    _add_table(doc,
+        ["Activity Type", "Count"],
+        [[t, str(c)] for t, c in
+         sorted(activity_types.items(),
+                key=lambda x: x[1], reverse=True)]
+    )
+
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+
+    logger.info("Generated monthly report")
+    return buffer.getvalue()
+
+
+def generate_client_acquisition_report(
+    clients: List[dict]
+) -> bytes:
+    """Generate client acquisition analysis report"""
+    doc = Document()
+
+    for section in doc.sections:
+        section.top_margin = Inches(1)
+        section.bottom_margin = Inches(1)
+        section.left_margin = Inches(1.25)
+        section.right_margin = Inches(1.25)
+
+    title = doc.add_heading(
+        "CLIENT ACQUISITION REPORT", 0
+    )
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    subtitle = doc.add_paragraph(
+        f"Generated: {datetime.now().strftime('%B %d, %Y')}"
+    )
+    subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    doc.add_paragraph()
+
+    # By Priority
+    doc.add_heading("CLIENTS BY PRIORITY", level=1)
+    for priority in ["High", "Medium", "Low"]:
+        priority_clients = [
+            c for c in clients
+            if c.get("priority") == priority
+        ]
+        doc.add_heading(
+            f"{priority} Priority ({len(priority_clients)})",
+            level=2
+        )
+        if priority_clients:
+            _add_table(doc,
+                ["Name", "Company", "Service", "Stage"],
+                [
+                    [
+                        c.get("name", ""),
+                        c.get("company", ""),
+                        c.get("service", ""),
+                        c.get("stage", "")
+                    ]
+                    for c in priority_clients
+                ]
+            )
+        else:
+            doc.add_paragraph(f"No {priority} priority clients.")
+
+    # By Service
+    doc.add_heading("CLIENTS BY SERVICE", level=1)
+    services = {}
+    for c in clients:
+        service = c.get("service", "Unspecified")
+        services[service] = services.get(service, 0) + 1
+
+    _add_table(doc,
+        ["Service", "Client Count"],
+        [[s, str(c)] for s, c in
+         sorted(services.items(),
+                key=lambda x: x[1], reverse=True)]
+    )
+
+    # All Clients
+    doc.add_heading("ALL CLIENTS", level=1)
+    _add_table(doc,
+        ["Client ID", "Name", "Company",
+         "Priority", "Stage", "Created"],
+        [
+            [
+                c.get("client_id", ""),
+                c.get("name", ""),
+                c.get("company", ""),
+                c.get("priority", ""),
+                c.get("stage", ""),
+                c.get("created_at", "")[:10]
+            ]
+            for c in clients
+        ]
+    )
+
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+
+    logger.info("Generated acquisition report")
+    return buffer.getvalue()
+
+
+def generate_agent_activity_report(
+    activities: List[dict],
+    agent_logs: List[dict]
+) -> bytes:
+    """Generate agent activity report"""
+    doc = Document()
+
+    for section in doc.sections:
+        section.top_margin = Inches(1)
+        section.bottom_margin = Inches(1)
+        section.left_margin = Inches(1.25)
+        section.right_margin = Inches(1.25)
+
+    title = doc.add_heading("AGENT ACTIVITY REPORT", 0)
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+    subtitle = doc.add_paragraph(
+        f"Generated: {datetime.now().strftime('%B %d, %Y')}"
+    )
+    subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    doc.add_paragraph()
+
+    # Summary
+    doc.add_heading("SUMMARY", level=1)
+    _add_table(doc,
+        ["Metric", "Value"],
+        [
+            ["Total Activities", str(len(activities))],
+            ["Total AI Operations", str(len(agent_logs))],
+            ["Success Rate",
+             f"{round(sum(1 for a in activities if a.get('result') == 'SUCCESS') / len(activities) * 100)}%"
+             if activities else "N/A"]
+        ]
+    )
+
+    # Activity Log
+    doc.add_heading("ACTIVITY LOG", level=1)
+    if activities:
+        _add_table(doc,
+            ["Timestamp", "Client ID", "Type", "Result"],
+            [
+                [
+                    a.get("timestamp", "")[:16],
+                    a.get("client_id", ""),
+                    a.get("type", ""),
+                    a.get("result", "")
+                ]
+                for a in activities[:50]
+            ]
+        )
+    else:
+        doc.add_paragraph("No activities recorded.")
+
+    # AI Operations
+    doc.add_heading("AI OPERATIONS LOG", level=1)
+    if agent_logs:
+        _add_table(doc,
+            ["Timestamp", "Type", "Input Preview"],
+            [
+                [
+                    log.get("timestamp", "")[:16],
+                    log.get("type", ""),
+                    str(log.get("input", ""))[:50]
+                ]
+                for log in agent_logs[:50]
+            ]
+        )
+    else:
+        doc.add_paragraph("No AI operations recorded.")
+
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+
+    logger.info("Generated agent activity report")
+    return buffer.getvalue()
