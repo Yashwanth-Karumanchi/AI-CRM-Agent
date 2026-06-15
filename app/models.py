@@ -259,3 +259,23 @@ class GenerateProposalInput(BaseModel):
     next_steps: Optional[List[str]] = None
     call_to_action: Optional[str] = None
     valid_until: Optional[str] = None
+
+class NLSearchInput(BaseModel):
+    query: str
+
+    @field_validator("query")
+    @classmethod
+    def not_empty(cls, v):
+        if not v.strip():
+            raise ValueError("Query cannot be empty")
+        return v.strip()
+
+class SmartFilterInput(BaseModel):
+    criteria: str
+
+    @field_validator("criteria")
+    @classmethod
+    def not_empty(cls, v):
+        if not v.strip():
+            raise ValueError("Criteria cannot be empty")
+        return v.strip()

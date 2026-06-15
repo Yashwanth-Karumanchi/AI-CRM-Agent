@@ -4,6 +4,14 @@ from app.config import get_settings
 from app.logger import get_logger
 from app.services import sheets
 
+from app.services.search import (
+    natural_language_search,
+    detect_patterns,
+    intelligent_filter,
+    revenue_forecast,
+    win_loss_analysis
+)
+
 from app.services.scoring import (
     score_client,
     score_pipeline,
@@ -205,3 +213,35 @@ async def get_daily_recommendations(clients: list) -> dict:
     """Get AI follow-up recommendations for today"""
     model = get_gemini_client()
     return await get_follow_up_recommendations(clients, model)
+
+async def nl_search(query: str, clients: list) -> dict:
+    """Natural language client search"""
+    model = get_gemini_client()
+    return await natural_language_search(
+        query, clients, model
+    )
+
+async def pipeline_patterns(clients: list) -> dict:
+    """Detect patterns across pipeline"""
+    model = get_gemini_client()
+    return await detect_patterns(clients, model)
+
+async def smart_filter(
+    criteria: str,
+    clients: list
+) -> dict:
+    """Filter clients with natural language"""
+    model = get_gemini_client()
+    return await intelligent_filter(
+        criteria, clients, model
+    )
+
+async def forecast_revenue(clients: list) -> dict:
+    """Forecast pipeline revenue"""
+    model = get_gemini_client()
+    return await revenue_forecast(clients, model)
+
+async def analyze_win_loss(clients: list) -> dict:
+    """Analyze win/loss patterns"""
+    model = get_gemini_client()
+    return await win_loss_analysis(clients, model)

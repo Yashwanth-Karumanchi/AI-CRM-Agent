@@ -2,6 +2,27 @@ from fastapi import (
     FastAPI, Depends, UploadFile,
     File, HTTPException, Query
 )
+
+from app.agent import (
+    extract_client_from_pdf,
+    analyze_client,
+    draft_email,
+    chat,
+    score_single_client,
+    score_entire_pipeline,
+    find_similar_clients,
+    get_daily_recommendations,
+    nl_search,
+    pipeline_patterns,
+    smart_filter,
+    forecast_revenue,
+    analyze_win_loss
+)
+from app.models import (
+    NLSearchInput,
+    SmartFilterInput
+)
+
 from app.services.reports import (
     generate_weekly_report,
     generate_monthly_report,
@@ -1316,4 +1337,183 @@ async def agent_activity_report(
         )
     except Exception as e:
         logger.error(f"Agent report failed: {e}")
+        raise HTTPException(500, str(e))
+
+# ─── Search & Intelligence ─────────────────────────────
+
+@app.post("/search", tags=["Search"])
+async def natural_language_search_endpoint(
+    data: NLSearchInput,
+    username: str = Depends(verify_credentials)
+):
+    """
+    Search clients using natural language.
+    Examples:
+    - 'Find high priority clients in consultation stage'
+    - 'Show me clients interested in AI automation'
+    - 'Who needs a follow up this week?'
+    """
+    try:
+        clients = await sheets.get_all_clients(limit=1000)
+
+        if not clients:
+            return {
+                "ok": True,
+                "query": data.query,
+                "total_matches": 0,
+                "matched_clients": []
+            }
+
+        result = await nl_search(data.query, clients)
+
+        await sheets.log_agent(
+            "NL_SEARCH",
+            data.query,
+            f"Found {result.get('total_matches', 0)} matches"
+        )
+
+        return {
+            "ok": True,
+            "query": data.query,
+            **result
+        }
+    except Exception as e:
+        logger.error(f"Search failed: {e}")
+        raise HTTPException(500, str(e))
+
+@app.post("/search/filter", tags=["Search"])
+async def smart_filter_endpoint(
+    data: SmartFilterInput,
+    username: str = Depends(verify_credentials)
+):
+    """
+    Filter clients with complex natural language criteria.
+    Examples:
+    - 'Clients who havent been contacted in 2 weeks'
+    - 'High value clients stuck in proposal stage'
+    - 'Clients likely to churn'
+    - 'New clients from this month'
+    """
+    try:
+        clients = await sheets.get_all_clients(limit=1000)
+        result = await smart_filter(data.criteria, clients)
+
+        await sheets.log_agent(
+            "SMART_FILTER",
+            data.criteria,
+            f"Found {result.get('total_matches', 0)} matches"
+        )
+
+        return {
+            "ok": True,
+            "criteria": data.criteria,
+            **result
+        }
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+@app.get("/insights/patterns", tags=["Intelligence"])
+async def pipeline_pattern_detection(
+    username: str = Depends(verify_credentials)
+):
+    """
+    AI detects patterns across your entire pipeline.
+    Finds segments, bottlenecks, and growth opportunities.
+    """
+    try:
+        clients = await sheets.get_all_clients(limit=1000)
+
+        if not clients:
+            raise HTTPException(400, "No clients to analyze")
+
+        patterns = await pipeline_patterns(clients)
+
+        await sheets.log_agent(
+            "PATTERN_DETECTION",
+            f"Analyzed {len(clients)} clients",
+            str(patterns)
+        )
+
+        return {
+            "ok": True,
+            "total_clients_analyzed": len(clients),
+            "patterns": patterns
+        }
+    except Exception as e:
+        logger.error(f"Pattern detection failed: {e}")
+        raise HTTPException(500, str(e))
+
+@app.get("/insights/revenue-forecast", tags=["Intelligence"])
+async def revenue_forecast_endpoint(
+    username: str = Depends(verify_credentials)
+):
+    """
+    AI forecasts expected revenue from current pipeline.
+    Projects 30-day and 90-day revenue estimates.
+    """
+    try:
+        clients = await sheets.get_all_clients(limit=1000)
+
+        if not clients:
+            raise HTTPException(400, "No clients to forecast")
+
+        forecast = await forecast_revenue(clients)
+
+        await sheets.log_agent(
+            "REVENUE_FORECAST",
+            f"Forecast for {len(clients)} clients",
+            str(forecast)
+        )
+
+        return {
+            "ok": True,
+            "total_clients": len(clients),
+            "forecast": forecast
+        }
+    except Exception as e:
+        logger.error(f"Forecast failed: {e}")
+        raise HTTPException(500, str(e))
+
+@app.get("/insights/win-loss", tags=["Intelligence"])
+async def win_loss_analysis_endpoint(
+    username: str = Depends(verify_credentials)
+):
+    """
+    AI analyzes won and lost deals for patterns.
+    Identifies what makes deals succeed or fail.
+    """
+    try:
+        clients = await sheets.get_all_clients(limit=1000)
+
+        won = [
+            c for c in clients
+            if c.get("stage") == "Won"
+        ]
+        lost = [
+            c for c in clients
+            if c.get("stage") == "Lost"
+        ]
+
+        if not won and not lost:
+            raise HTTPException(
+                400,
+                "No won or lost deals to analyze yet"
+            )
+
+        analysis = await analyze_win_loss(clients)
+
+        await sheets.log_agent(
+            "WIN_LOSS_ANALYSIS",
+            f"Won: {len(won)}, Lost: {len(lost)}",
+            str(analysis)
+        )
+
+        return {
+            "ok": True,
+            "won_count": len(won),
+            "lost_count": len(lost),
+            "analysis": analysis
+        }
+    except Exception as e:
+        logger.error(f"Win/loss analysis failed: {e}")
         raise HTTPException(500, str(e))
