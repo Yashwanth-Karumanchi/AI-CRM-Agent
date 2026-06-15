@@ -21,15 +21,24 @@ def get_gmail_service():
     """Get authenticated Gmail service using OAuth"""
     import json
     import os
+
     creds = None
 
     # Try environment variable first (for Render)
     token_env = os.getenv("GMAIL_TOKEN")
     if token_env:
-        creds = Credentials.from_authorized_user_info(
-            json.loads(token_env),
-            SCOPES
-        )
+        try:
+            token_data = json.loads(token_env)
+            creds = Credentials(
+                token=token_data.get("token"),
+                refresh_token=token_data.get("refresh_token"),
+                token_uri=token_data.get("token_uri", "https://oauth2.googleapis.com/token"),
+                client_id=token_data.get("client_id"),
+                client_secret=token_data.get("client_secret"),
+                scopes=token_data.get("scopes", SCOPES)
+            )
+        except Exception as e:
+            logger.error(f"Failed to load GMAIL_TOKEN env var: {e}")
 
     # Fall back to token.json file (for local)
     elif os.path.exists("token.json"):
@@ -40,11 +49,15 @@ def get_gmail_service():
 
     # Refresh if expired
     if creds and creds.expired and creds.refresh_token:
-        creds.refresh(Request())
+        try:
+            creds.refresh(Request())
+        except Exception as e:
+            logger.error(f"Failed to refresh token: {e}")
+            raise ValueError(f"Gmail token expired and refresh failed: {e}")
 
-    if not creds:
+    if not creds or not creds.valid:
         raise ValueError(
-            "No Gmail credentials found. "
+            "No valid Gmail credentials found. "
             "Run OAuth locally first to generate token.json"
         )
 
