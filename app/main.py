@@ -54,6 +54,18 @@ async def startup():
     except Exception as e:
         logger.error(f"Sheets setup failed: {e}")
 
+@app.get("/debug-gmail", tags=["System"])
+async def debug_gmail():
+    import os
+    import json
+    token_env = os.getenv("GMAIL_TOKEN")
+    return {
+        "gmail_token_exists": token_env is not None,
+        "gmail_token_length": len(token_env) if token_env else 0,
+        "gmail_address": os.getenv("GMAIL_ADDRESS"),
+        "has_refresh_token": "refresh_token" in (token_env or "")
+    }
+    
 # --- Health ---
 
 @app.get("/health", tags=["System"])
