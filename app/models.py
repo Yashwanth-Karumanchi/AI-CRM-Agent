@@ -189,3 +189,73 @@ class MeetingNotesInput(BaseModel):
         if not v.strip():
             raise ValueError("Notes cannot be empty")
         return v.strip()
+
+class TimelineItem(BaseModel):
+    milestone: Optional[str] = None
+    phase: Optional[str] = None
+    description: Optional[str] = None
+    date: Optional[str] = None
+    duration: Optional[str] = None
+
+class LineItem(BaseModel):
+    description: str
+    quantity: float = 1.0
+    unit_price: float = 0.0
+
+class PricingTier(BaseModel):
+    name: str
+    price: str
+    description: Optional[str] = None
+    includes: Optional[List[str]] = None
+
+class GenerateContractInput(BaseModel):
+    client_id: str
+    provider_name: str
+    provider_address: Optional[str] = None
+    provider_email: Optional[str] = None
+    scope_of_work: Optional[str] = None
+    deliverables: Optional[List[str]] = None
+    timeline: Optional[List[TimelineItem]] = None
+    total_amount: Optional[str] = None
+    payment_schedule: Optional[str] = "Net 30"
+    payment_method: Optional[str] = "Bank Transfer"
+    valid_until: Optional[str] = None
+    terms: Optional[List[str]] = None
+    confidentiality: Optional[str] = None
+    ip_clause: Optional[str] = None
+
+class GenerateInvoiceInput(BaseModel):
+    client_id: str
+    provider_name: str
+    provider_email: Optional[str] = None
+    provider_address: Optional[str] = None
+    line_items: List[LineItem]
+    tax_rate: float = 0.0
+    discount: float = 0.0
+    due_date: Optional[str] = None
+    payment_instructions: Optional[str] = None
+    notes: Optional[str] = None
+
+    @field_validator("line_items")
+    @classmethod
+    def must_have_items(cls, v):
+        if not v:
+            raise ValueError("Must have at least one line item")
+        return v
+
+class GenerateProposalInput(BaseModel):
+    client_id: str
+    provider_name: str
+    provider_email: Optional[str] = None
+    executive_summary: Optional[str] = None
+    problem_statement: Optional[str] = None
+    proposed_solution: Optional[str] = None
+    scope_items: Optional[List[str]] = None
+    timeline: Optional[List[TimelineItem]] = None
+    total_price: Optional[str] = None
+    pricing_tiers: Optional[List[PricingTier]] = None
+    pricing_notes: Optional[str] = None
+    why_us: Optional[List[str]] = None
+    next_steps: Optional[List[str]] = None
+    call_to_action: Optional[str] = None
+    valid_until: Optional[str] = None

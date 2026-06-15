@@ -58,6 +58,20 @@ from app.agent import (
     get_daily_recommendations
 )
 
+from app.services.contracts import (
+    generate_contract,
+    generate_invoice,
+    generate_proposal
+)
+from app.models import (
+    GenerateContractInput,
+    GenerateInvoiceInput,
+    GenerateProposalInput,
+    TimelineItem,
+    LineItem,
+    PricingTier
+)
+
 logger = get_logger(__name__)
 
 app = FastAPI(
@@ -992,4 +1006,203 @@ async def stale_clients(
             "stale_clients": stale
         }
     except Exception as e:
+        raise HTTPException(500, str(e))
+
+# ─── Contracts, Invoices, Proposals ───────────────────
+
+@app.post("/clients/{client_id}/contract", tags=["Documents"])
+async def create_contract(
+    client_id: str,
+    data: GenerateContractInput,
+    username: str = Depends(verify_credentials)
+):
+    """Generate a professional service contract"""
+    try:
+        client = await sheets.require_client(client_id)
+
+        import uuid
+        contract_data = data.model_dump()
+        contract_data["contract_number"] = (
+            "CON-" + str(uuid.uuid4())[:8].upper()
+        )
+
+        contract_bytes = generate_contract(client, contract_data)
+
+        await sheets.log_activity(
+            client_id,
+            "CONTRACT_GENERATED",
+            f"Contract generated for {client['name']}",
+            "SUCCESS",
+            ""
+        )
+
+        filename = f"contract_{client_id}.docx"
+
+        return Response(
+            content=contract_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}"
+            }
+        )
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    except Exception as e:
+        logger.error(f"Contract generation failed: {e}")
+        raise HTTPException(500, str(e))
+
+@app.post("/clients/{client_id}/invoice", tags=["Documents"])
+async def create_invoice(
+    client_id: str,
+    data: GenerateInvoiceInput,
+    username: str = Depends(verify_credentials)
+):
+    """Generate a professional invoice"""
+    try:
+        client = await sheets.require_client(client_id)
+
+        invoice_data = data.model_dump()
+        invoice_data["line_items"] = [
+            item if isinstance(item, dict)
+            else item.model_dump()
+            for item in data.line_items
+        ]
+
+        invoice_bytes = generate_invoice(client, invoice_data)
+
+        await sheets.log_activity(
+            client_id,
+            "INVOICE_GENERATED",
+            f"Invoice generated for {client['name']}",
+            "SUCCESS",
+            ""
+        )
+
+        filename = f"invoice_{client_id}.docx"
+
+        return Response(
+            content=invoice_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}"
+            }
+        )
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    except Exception as e:
+        logger.error(f"Invoice generation failed: {e}")
+        raise HTTPException(500, str(e))
+
+@app.post("/clients/{client_id}/proposal", tags=["Documents"])
+async def create_proposal(
+    client_id: str,
+    data: GenerateProposalInput,
+    username: str = Depends(verify_credentials)
+):
+    """Generate a professional business proposal"""
+    try:
+        client = await sheets.require_client(client_id)
+        proposal_data = data.model_dump()
+        proposal_bytes = generate_proposal(client, proposal_data)
+
+        await sheets.log_activity(
+            client_id,
+            "PROPOSAL_GENERATED",
+            f"Proposal generated for {client['name']}",
+            "SUCCESS",
+            ""
+        )
+
+        await sheets.update_stage(
+            client_id,
+            "Proposal Sent",
+            changed_by=username
+        )
+
+        filename = f"proposal_{client_id}.docx"
+
+        return Response(
+            content=proposal_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}"
+            }
+        )
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    except Exception as e:
+        logger.error(f"Proposal generation failed: {e}")
+        raise HTTPException(500, str(e))
+
+@app.post("/clients/{client_id}/ai-proposal", tags=["Documents"])
+async def ai_generate_proposal(
+    client_id: str,
+    provider_name: str,
+    provider_email: Optional[str] = None,
+    username: str = Depends(verify_credentials)
+):
+    """
+    AI automatically generates a complete proposal
+    based on client data — no manual input needed
+    """
+    try:
+        client = await sheets.require_client(client_id)
+        analysis = await analyze_client(client)
+
+        proposal_data = {
+            "provider_name": provider_name,
+            "provider_email": provider_email,
+            "executive_summary": analysis.get(
+                "executive_summary", ""
+            ),
+            "problem_statement": analysis.get(
+                "business_problem", ""
+            ),
+            "proposed_solution": (
+                f"We propose to address your "
+                f"{client.get('service', 'needs')} through "
+                f"our proven methodology and expertise."
+            ),
+            "scope_items": analysis.get(
+                "recommendations", []
+            ),
+            "next_steps": [
+                "Review this proposal",
+                "Schedule a discovery call",
+                "Sign the service agreement",
+                "Begin project kickoff"
+            ],
+            "why_us": [
+                "Proven track record",
+                "Dedicated support team",
+                "Transparent pricing",
+                "On-time delivery guarantee"
+            ]
+        }
+
+        proposal_bytes = generate_proposal(
+            client, proposal_data
+        )
+
+        await sheets.log_activity(
+            client_id,
+            "AI_PROPOSAL_GENERATED",
+            f"AI generated proposal for {client['name']}",
+            "SUCCESS",
+            ""
+        )
+
+        filename = f"ai_proposal_{client_id}.docx"
+
+        return Response(
+            content=proposal_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}"
+            }
+        )
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    except Exception as e:
+        logger.error(f"AI proposal failed: {e}")
         raise HTTPException(500, str(e))
