@@ -24,7 +24,6 @@ from app.agent import (
     draft_email,
     chat
 )
-from app.mcp_server import mcp
 
 logger = get_logger(__name__)
 

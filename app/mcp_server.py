@@ -1,4 +1,7 @@
-from mcp.server.fastmcp import FastMCP
+try:
+    from mcp.server.fastmcp import FastMCP
+except ImportError:
+    from fastmcp import FastMCP
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 import json
