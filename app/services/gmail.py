@@ -19,29 +19,34 @@ SCOPES = [
 
 def get_gmail_service():
     """Get authenticated Gmail service using OAuth"""
+    import json
+    import os
     creds = None
 
-    # Load existing token
-    if os.path.exists("token.json"):
+    # Try environment variable first (for Render)
+    token_env = os.getenv("GMAIL_TOKEN")
+    if token_env:
+        creds = Credentials.from_authorized_user_info(
+            json.loads(token_env),
+            SCOPES
+        )
+
+    # Fall back to token.json file (for local)
+    elif os.path.exists("token.json"):
         creds = Credentials.from_authorized_user_file(
             "token.json",
             SCOPES
         )
 
-    # Refresh or get new token
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                "gmail_oauth.json",
-                SCOPES
-            )
-            creds = flow.run_local_server(port=0)
+    # Refresh if expired
+    if creds and creds.expired and creds.refresh_token:
+        creds.refresh(Request())
 
-        # Save token for next time
-        with open("token.json", "w") as token:
-            token.write(creds.to_json())
+    if not creds:
+        raise ValueError(
+            "No Gmail credentials found. "
+            "Run OAuth locally first to generate token.json"
+        )
 
     return build("gmail", "v1", credentials=creds)
 

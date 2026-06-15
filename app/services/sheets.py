@@ -26,10 +26,21 @@ ACTIVITY_HEADERS = [
 ]
 
 def get_sheets_client():
-    creds = Credentials.from_service_account_file(
-        "credentials.json",
-        scopes=SCOPES
-    )
+    import os
+    import json
+
+    creds_env = os.getenv("GOOGLE_CREDENTIALS")
+    if creds_env:
+        creds_info = json.loads(creds_env)
+        creds = Credentials.from_service_account_info(
+            creds_info,
+            scopes=SCOPES
+        )
+    else:
+        creds = Credentials.from_service_account_file(
+            "credentials.json",
+            scopes=SCOPES
+        )
     return gspread.authorize(creds)
 
 def get_spreadsheet():
