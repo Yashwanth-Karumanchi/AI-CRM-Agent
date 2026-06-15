@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+*.pyc
+.env
+credentials.json
+gmail_oauth.json
+token.json
+*.docx
+*.pdf
+.DS_Store
