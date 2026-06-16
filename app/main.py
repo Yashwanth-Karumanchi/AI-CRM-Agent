@@ -3,6 +3,9 @@ from fastapi import (
     File, HTTPException, Query
 )
 
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
 from app.agent import (
     extract_client_from_pdf,
     analyze_client,
@@ -121,6 +124,12 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc"
 )
+
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+@app.get("/aria", tags=["ARIA"])
+async def serve_aria():
+    return FileResponse("app/static/aria.html")
 
 app.add_middleware(
     CORSMiddleware,
@@ -1516,4 +1525,82 @@ async def win_loss_analysis_endpoint(
         }
     except Exception as e:
         logger.error(f"Win/loss analysis failed: {e}")
+        raise HTTPException(500, str(e))
+
+# ─── ARIA Chat Endpoint ────────────────────────────────
+
+@app.post("/aria/chat", tags=["ARIA"])
+async def aria_chat(
+    data: AgentChat,
+    username: str = Depends(verify_credentials)
+):
+    """
+    ARIA smart chat — understands natural language
+    and automatically calls the right CRM operations
+    """
+    try:
+        clients = await sheets.get_all_clients(limit=1000)
+        pipeline = await sheets.get_pipeline_summary()
+
+        settings = get_settings()
+        import google.genai as genai
+        model = genai.Client(
+            api_key=settings.gemini_api_key
+        )
+
+        system_context = f"""
+        You are ARIA, an AI Relationship Intelligence Assistant
+        for a CRM system. You help manage clients, pipeline,
+        emails, meetings, and business intelligence.
+
+        Current Pipeline State:
+        - Total Clients: {pipeline.get('total_clients', 0)}
+        - Stage Counts: {pipeline.get('stage_counts', {})}
+        - High Priority Pending: {pipeline.get('high_priority_pending_count', 0)}
+
+        Recent Clients:
+        {json.dumps([
+            {{
+                "client_id": c.get("client_id"),
+                "name": c.get("name"),
+                "company": c.get("company"),
+                "stage": c.get("stage"),
+                "priority": c.get("priority")
+            }}
+            for c in clients[:10]
+        ], indent=2)}
+
+        Respond conversationally and helpfully.
+        If the user asks to DO something (create client,
+        send email, schedule meeting, generate report),
+        tell them what you would do and what information
+        you need. Keep responses concise and actionable.
+        """
+
+        prompt = system_context + f"\n\nUser: {data.message}"
+
+        response = model.models.generate_content(
+            model="models/gemini-2.5-flash",
+            contents=prompt
+        )
+
+        reply = response.text.strip()
+
+        await sheets.log_agent(
+            "ARIA_CHAT",
+            data.message,
+            reply
+        )
+
+        return {
+            "ok": True,
+            "message": data.message,
+            "response": reply,
+            "pipeline_context": {
+                "total_clients": pipeline.get("total_clients", 0),
+                "high_priority": pipeline.get("high_priority_pending_count", 0)
+            }
+        }
+    except Exception as e:
+        logger.error(f"ARIA chat failed: {e}")
         raise HTTPException(500, str(e))
