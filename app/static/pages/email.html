@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARIA — Email</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/aria.css">
+</head>
+<body>
+<div class="app-layout">
+    <div class="topbar">
+        <div class="topbar-brand">
+            <div class="topbar-logo">🤖</div>
+            <div><div class="topbar-title">ARIA</div>
+                <div class="topbar-subtitle">AI Relationship Intelligence</div></div>
+        </div>
+        <div class="topbar-right">
+            <div class="status-dot">Connected</div>
+            <button class="btn btn-secondary btn-sm" onclick="logout()">Sign Out</button>
+        </div>
+    </div>
+    <div class="app-body">
+        <div class="sidebar">
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-label">Main</div>
+                    <a href="/aria/dashboard" class="nav-item"><span class="nav-item-icon">📊</span>Dashboard</a>
+                    <a href="/aria/clients" class="nav-item"><span class="nav-item-icon">👥</span>Clients</a>
+                    <a href="/aria/chat" class="nav-item"><span class="nav-item-icon">💬</span>Chat with ARIA</a>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-label">Tools</div>
+                    <a href="/aria/calendar" class="nav-item"><span class="nav-item-icon">📅</span>Calendar</a>
+                    <a href="/aria/email" class="nav-item active"><span class="nav-item-icon">📧</span>Email</a>
+                    <a href="/aria/reports" class="nav-item"><span class="nav-item-icon">📄</span>Reports</a>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-label">Intelligence</div>
+                    <a href="/aria/intel" class="nav-item"><span class="nav-item-icon">🧠</span>Intelligence</a>
+                    <a href="/aria/search" class="nav-item"><span class="nav-item-icon">🔍</span>Smart Search</a>
+                </div>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="sidebar-stats" id="sidebarStats">
+                    <div class="text-muted text-xs">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="page">
+                <div class="page-header">
+                    <div>
+                        <div class="page-title">Email</div>
+                        <div class="page-subtitle">Send emails and manage Gmail drafts</div>
+                    </div>
+                    <button class="btn btn-primary btn-sm" onclick="openModal('composeModal')">
+                        + Compose
+                    </button>
+                </div>
+
+                <div class="grid-2">
+                    <!-- AI Draft -->
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">🤖 AI Draft Email</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="input-group">
+                                <label class="input-label">Client ID</label>
+                                <input id="aiClientId" class="input" placeholder="CL-XXXXXXXX"
+                                    value="${new URLSearchParams(window.location.search).get('client') || ''}">
+                            </div>
+                            <div class="input-group">
+                                <label class="input-label">Instructions</label>
+                                <textarea id="aiInstruction" class="input textarea" rows="4"
+                                    placeholder="e.g. Write a follow-up email thanking them for the meeting and outlining next steps..."></textarea>
+                            </div>
+                            <div class="flex gap-2">
+                                <button class="btn btn-secondary" style="flex:1"
+                                    onclick="aiDraftEmail(false)" id="draftBtn">
+                                    💾 Save as Draft
+                                </button>
+                                <button class="btn btn-primary" style="flex:1"
+                                    onclick="aiDraftEmail(true)" id="sendBtn">
+                                    🚀 Draft & Send
+                                </button>
+                            </div>
+                            <div id="aiResult" class="mt-3 hidden"></div>
+                        </div>
+                    </div>
+
+                    <!-- Gmail Drafts -->
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">📬 Gmail Drafts</span>
+                            <button class="btn btn-ghost btn-sm" onclick="loadDrafts()">↻ Refresh</button>
+                        </div>
+                        <div class="card-body" id="draftsList">
+                            <div class="loading-overlay">
+                                <div class="loading-spinner"></div>Loading...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Compose Modal -->
+<div id="composeModal" class="modal-overlay">
+    <div class="modal modal-md">
+        <div class="modal-header">
+            <span class="modal-title">Compose Email</span>
+            <button class="btn btn-ghost btn-icon" onclick="closeModal('composeModal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="input-group">
+                <label class="input-label">Client ID *</label>
+                <input id="compClientId" class="input" placeholder="CL-XXXXXXXX">
+            </div>
+            <div class="input-group">
+                <label class="input-label">To (override client email)</label>
+                <input id="compTo" type="email" class="input" placeholder="Optional override">
+            </div>
+            <div class="input-group">
+                <label class="input-label">Subject *</label>
+                <input id="compSubject" class="input" placeholder="Email subject">
+            </div>
+            <div class="input-group">
+                <label class="input-label">Body *</label>
+                <textarea id="compBody" class="input textarea" rows="6"
+                    placeholder="Email body..."></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="sendCompose('draft')">💾 Save Draft</button>
+            <button class="btn btn-primary" onclick="sendCompose('send')" id="compSendBtn">🚀 Send</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+<script src="/static/js/api.js"></script>
+<script src="/static/js/utils.js"></script>
+<script src="/static/js/nav.js"></script>
+<script>
+function logout() { API.clear(); window.location.href = '/aria/'; }
+Nav.init();
+
+// Pre-fill client ID from URL param
+const urlParams = new URLSearchParams(window.location.search);
+const prefilledClient = urlParams.get('client');
+if (prefilledClient) {
+    document.getElementById('aiClientId').value = prefilledClient;
+}
+
+async function loadDrafts() {
+    const container = document.getElementById('draftsList');
+    container.innerHTML = '<div class="loading-overlay"><div class="loading-spinner"></div></div>';
+
+    try {
+        const res = await API.get('/email/drafts?max_results=20');
+        const drafts = res.drafts || [];
+
+        if (!drafts.length) {
+            container.innerHTML = '<div class="empty-state"><div class="empty-state-desc">No drafts in Gmail</div></div>';
+            return;
+        }
+
+        container.innerHTML = drafts.map(d => `
+            <div class="flex items-center justify-between"
+                style="padding:10px 0;border-bottom:1px solid var(--border)">
+                <div style="min-width:0;flex:1">
+                    <div class="font-semibold text-sm truncate">
+                        ${escapeHtml(d.subject || 'No subject')}
+                    </div>
+                    <div class="text-muted text-xs">
+                        To: ${escapeHtml(d.to || '—')}
+                    </div>
+                </div>
+                <button class="btn btn-danger btn-sm ml-3"
+                    onclick="deleteDraft('${d.draft_id}')">🗑</button>
+            </div>
+        `).join('');
+    } catch(e) {
+        container.innerHTML = `<div class="alert alert-error">${escapeHtml(e.message)}</div>`;
+    }
+}
+
+async function deleteDraft(draftId) {
+    if (!confirm('Delete this draft?')) return;
+    try {
+        await API.delete(`/email/draft/${draftId}`);
+        Toast.success('Draft deleted');
+        loadDrafts();
+    } catch(e) {
+        Toast.error('Failed to delete draft');
+    }
+}
+
+async function aiDraftEmail(send) {
+    const clientId = document.getElementById('aiClientId').value.trim();
+    const instruction = document.getElementById('aiInstruction').value.trim();
+    const resultEl = document.getElementById('aiResult');
+
+    if (!clientId || !instruction) {
+        Toast.error('Client ID and instructions are required');
+        return;
+    }
+
+    const draftBtn = document.getElementById('draftBtn');
+    const sendBtn = document.getElementById('sendBtn');
+    setLoading(draftBtn, true);
+    setLoading(sendBtn, true);
+    resultEl.classList.add('hidden');
+
+    try {
+        const res = await API.post('/agent/draft-email', {
+            client_id: clientId,
+            instruction: instruction,
+            send: send
+        });
+
+        if (res.ok) {
+            const msg = send
+                ? `✅ Email sent to ${res.sent_to || 'client'}`
+                : `✅ Draft saved to Gmail`;
+
+            resultEl.className = 'mt-3 alert alert-success';
+            resultEl.innerHTML = `
+                <div>${msg}</div>
+                <div class="mt-2 text-xs">
+                    <strong>Subject:</strong> ${escapeHtml(res.subject || '')}<br>
+                    <div style="margin-top:4px;white-space:pre-wrap;max-height:100px;overflow:auto">
+                        ${escapeHtml(res.body || '')}
+                    </div>
+                </div>
+            `;
+            resultEl.classList.remove('hidden');
+
+            if (!send) loadDrafts();
+            Toast.success(send ? 'Email sent!' : 'Draft saved to Gmail!');
+        } else {
+            throw new Error(res.detail || 'Failed');
+        }
+    } catch(e) {
+        resultEl.className = 'mt-3 alert alert-error';
+        resultEl.textContent = e.message;
+        resultEl.classList.remove('hidden');
+        Toast.error(e.message);
+    } finally {
+        setLoading(draftBtn, false);
+        setLoading(sendBtn, false);
+    }
+}
+
+async function sendCompose(action) {
+    const clientId = document.getElementById('compClientId').value.trim();
+    const subject = document.getElementById('compSubject').value.trim();
+    const body = document.getElementById('compBody').value.trim();
+
+    if (!clientId || !subject || !body) {
+        Toast.error('Client ID, subject and body are required');
+        return;
+    }
+
+    const data = {
+        client_id: clientId,
+        subject,
+        body,
+        to: document.getElementById('compTo').value.trim() || undefined
+    };
+
+    try {
+        const endpoint = action === 'send' ? '/email/send' : '/email/draft';
+        const res = await API.post(endpoint, data);
+        if (res.ok) {
+            Toast.success(action === 'send' ? 'Email sent!' : 'Draft saved!');
+            closeModal('composeModal');
+            if (action === 'draft') loadDrafts();
+        } else {
+            Toast.error(res.detail || 'Failed');
+        }
+    } catch(e) {
+        Toast.error(e.message);
+    }
+}
+
+loadDrafts();
+</script>
+</body>
+</html>

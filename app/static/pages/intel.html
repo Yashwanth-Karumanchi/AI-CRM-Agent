@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARIA — Intelligence</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/aria.css">
+</head>
+<body>
+<div class="app-layout">
+    <div class="topbar">
+        <div class="topbar-brand">
+            <div class="topbar-logo">🤖</div>
+            <div><div class="topbar-title">ARIA</div>
+                <div class="topbar-subtitle">AI Relationship Intelligence</div></div>
+        </div>
+        <div class="topbar-right">
+            <div class="status-dot">Connected</div>
+            <button class="btn btn-secondary btn-sm" onclick="logout()">Sign Out</button>
+        </div>
+    </div>
+    <div class="app-body">
+        <div class="sidebar">
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-label">Main</div>
+                    <a href="/aria/dashboard" class="nav-item"><span class="nav-item-icon">📊</span>Dashboard</a>
+                    <a href="/aria/clients" class="nav-item"><span class="nav-item-icon">👥</span>Clients</a>
+                    <a href="/aria/chat" class="nav-item"><span class="nav-item-icon">💬</span>Chat with ARIA</a>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-label">Tools</div>
+                    <a href="/aria/calendar" class="nav-item"><span class="nav-item-icon">📅</span>Calendar</a>
+                    <a href="/aria/email" class="nav-item"><span class="nav-item-icon">📧</span>Email</a>
+                    <a href="/aria/reports" class="nav-item"><span class="nav-item-icon">📄</span>Reports</a>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-label">Intelligence</div>
+                    <a href="/aria/intel" class="nav-item active"><span class="nav-item-icon">🧠</span>Intelligence</a>
+                    <a href="/aria/search" class="nav-item"><span class="nav-item-icon">🔍</span>Smart Search</a>
+                </div>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="sidebar-stats" id="sidebarStats">
+                    <div class="text-muted text-xs">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="page">
+                <div class="page-header">
+                    <div>
+                        <div class="page-title">Intelligence</div>
+                        <div class="page-subtitle">AI-powered pipeline analysis and insights</div>
+                    </div>
+                </div>
+
+                <!-- Score Single Client -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <span class="card-title">🎯 Score a Client</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="flex gap-3 items-center">
+                            <input id="scoreClientId" class="input"
+                                style="max-width:220px"
+                                placeholder="Client ID e.g. CL-XXXXXXXX">
+                            <button class="btn btn-primary"
+                                onclick="scoreClient()">
+                                Score Client
+                            </button>
+                        </div>
+                        <div id="scoreResult" class="mt-3 hidden"></div>
+                    </div>
+                </div>
+
+                <!-- Intelligence Grid -->
+                <div class="grid-2 mb-4">
+                    <button class="intel-card" onclick="runIntel('pipeline/score', 'Pipeline Score')">
+                        <div class="intel-card-icon">📈</div>
+                        <div class="intel-card-title">Pipeline Score</div>
+                        <div class="intel-card-desc">AI health check of your entire pipeline</div>
+                        <div class="intel-card-arrow">Run Analysis →</div>
+                    </button>
+
+                    <button class="intel-card" onclick="runIntel('insights/patterns', 'Pattern Detection')">
+                        <div class="intel-card-icon">🔍</div>
+                        <div class="intel-card-title">Pattern Detection</div>
+                        <div class="intel-card-desc">Find segments, bottlenecks, opportunities</div>
+                        <div class="intel-card-arrow">Run Analysis →</div>
+                    </button>
+
+                    <button class="intel-card" onclick="runIntel('insights/revenue-forecast', 'Revenue Forecast')">
+                        <div class="intel-card-icon">💰</div>
+                        <div class="intel-card-title">Revenue Forecast</div>
+                        <div class="intel-card-desc">30-day and 90-day revenue projections</div>
+                        <div class="intel-card-arrow">Run Analysis →</div>
+                    </button>
+
+                    <button class="intel-card" onclick="runIntel('insights/win-loss', 'Win/Loss Analysis')">
+                        <div class="intel-card-icon">🏆</div>
+                        <div class="intel-card-title">Win/Loss Analysis</div>
+                        <div class="intel-card-desc">What makes deals succeed or fail</div>
+                        <div class="intel-card-arrow">Run Analysis →</div>
+                    </button>
+
+                    <button class="intel-card" onclick="runIntel('recommendations/daily', 'Daily Recommendations')">
+                        <div class="intel-card-icon">✅</div>
+                        <div class="intel-card-title">Daily Recommendations</div>
+                        <div class="intel-card-desc">Who to contact and what to do today</div>
+                        <div class="intel-card-arrow">Run Analysis →</div>
+                    </button>
+
+                    <button class="intel-card" onclick="runIntel('recommendations/stale?days_inactive=14', 'Stale Clients')">
+                        <div class="intel-card-icon">⚠️</div>
+                        <div class="intel-card-title">Stale Clients</div>
+                        <div class="intel-card-desc">Clients with no activity in 14+ days</div>
+                        <div class="intel-card-arrow">Run Analysis →</div>
+                    </button>
+                </div>
+
+                <!-- Result Panel -->
+                <div id="intelResult" class="result-panel hidden">
+                    <div class="result-panel-header">
+                        <span class="card-title" id="intelResultTitle"></span>
+                        <div class="flex gap-2">
+                            <span id="intelResultTime" class="text-muted text-xs"></span>
+                            <button class="btn btn-ghost btn-sm"
+                                onclick="document.getElementById('intelResult').classList.add('hidden')">
+                                ✕ Close
+                            </button>
+                        </div>
+                    </div>
+                    <div class="result-panel-body">
+                        <div id="intelResultContent" class="json-viewer"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+<script src="/static/js/api.js"></script>
+<script src="/static/js/utils.js"></script>
+<script src="/static/js/nav.js"></script>
+<script>
+function logout() { API.clear(); window.location.href = '/aria/'; }
+Nav.init();
+
+async function runIntel(endpoint, title) {
+    const resultEl = document.getElementById('intelResult');
+    const titleEl = document.getElementById('intelResultTitle');
+    const contentEl = document.getElementById('intelResultContent');
+    const timeEl = document.getElementById('intelResultTime');
+
+    titleEl.textContent = title;
+    contentEl.innerHTML = '<div class="loading-overlay"><div class="loading-spinner"></div>Running AI analysis...</div>';
+    timeEl.textContent = '';
+    resultEl.classList.remove('hidden');
+
+    resultEl.scrollIntoView({ behavior: 'smooth' });
+
+    try {
+        const start = Date.now();
+        const res = await API.get(`/${endpoint}`);
+        const elapsed = ((Date.now() - start) / 1000).toFixed(1);
+        timeEl.textContent = `${elapsed}s`;
+        contentEl.innerHTML = prettyJson(res);
+        Toast.success(`${title} complete`);
+    } catch(e) {
+        contentEl.innerHTML = `<div class="alert alert-error">${escapeHtml(e.message)}</div>`;
+        Toast.error(`${title} failed: ${e.message}`);
+    }
+}
+
+async function scoreClient() {
+    const clientId = document.getElementById('scoreClientId').value.trim();
+    if (!clientId) {
+        Toast.error('Please enter a Client ID');
+        return;
+    }
+
+    const resultEl = document.getElementById('scoreResult');
+    resultEl.innerHTML = '<div class="loading-overlay"><div class="loading-spinner"></div>Scoring...</div>';
+    resultEl.classList.remove('hidden');
+
+    try {
+        const res = await API.get(`/clients/${clientId}/score`);
+        const s = res.score;
+        resultEl.innerHTML = `
+            <div class="grid-2" style="gap:12px">
+                <div class="stat-card">
+                    <div class="stat-value">${s.lead_score}/10</div>
+                    <div class="stat-label">Lead Score</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" style="font-size:20px">${s.estimated_close_probability}%</div>
+                    <div class="stat-label">Close Probability</div>
+                </div>
+            </div>
+            <div class="card card-p mt-3">
+                <div class="flex gap-4 mb-3">
+                    <div>
+                        <div class="input-label">Churn Risk</div>
+                        <span class="badge ${s.churn_risk==='High'?'badge-high':s.churn_risk==='Medium'?'badge-medium':'badge-low'}">
+                            ${escapeHtml(s.churn_risk)}
+                        </span>
+                    </div>
+                    <div>
+                        <div class="input-label">Opportunity</div>
+                        <span class="badge badge-stage">${escapeHtml(s.opportunity_value)}</span>
+                    </div>
+                    <div>
+                        <div class="input-label">Sentiment</div>
+                        <span class="badge badge-stage">${escapeHtml(s.sentiment)}</span>
+                    </div>
+                </div>
+                <div class="input-label">Best Next Action</div>
+                <div class="text-secondary mb-3">${escapeHtml(s.best_next_action)}</div>
+                <div class="input-label">Summary</div>
+                <div class="text-secondary text-sm">${escapeHtml(s.summary)}</div>
+                ${s.recommended_actions?.length ? `
+                    <div class="input-label mt-3">Recommended Actions</div>
+                    <ul style="padding-left:16px;color:var(--text-secondary);font-size:13px">
+                        ${s.recommended_actions.map(a => `<li>${escapeHtml(a)}</li>`).join('')}
+                    </ul>
+                ` : ''}
+            </div>
+        `;
+        Toast.success('Client scored!');
+    } catch(e) {
+        resultEl.innerHTML = `<div class="alert alert-error">${escapeHtml(e.message)}</div>`;
+        Toast.error('Scoring failed: ' + e.message);
+    }
+}
+</script>
+</body>
+</html>

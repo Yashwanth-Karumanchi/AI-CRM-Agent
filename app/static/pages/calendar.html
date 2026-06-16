@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARIA — Calendar</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/aria.css">
+</head>
+<body>
+<div class="app-layout">
+    <div class="topbar">
+        <div class="topbar-brand">
+            <div class="topbar-logo">🤖</div>
+            <div><div class="topbar-title">ARIA</div>
+                <div class="topbar-subtitle">AI Relationship Intelligence</div></div>
+        </div>
+        <div class="topbar-right">
+            <div class="status-dot">Connected</div>
+            <button class="btn btn-secondary btn-sm" onclick="logout()">Sign Out</button>
+        </div>
+    </div>
+    <div class="app-body">
+        <div class="sidebar">
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-label">Main</div>
+                    <a href="/aria/dashboard" class="nav-item"><span class="nav-item-icon">📊</span>Dashboard</a>
+                    <a href="/aria/clients" class="nav-item"><span class="nav-item-icon">👥</span>Clients</a>
+                    <a href="/aria/chat" class="nav-item"><span class="nav-item-icon">💬</span>Chat with ARIA</a>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-label">Tools</div>
+                    <a href="/aria/calendar" class="nav-item active"><span class="nav-item-icon">📅</span>Calendar</a>
+                    <a href="/aria/email" class="nav-item"><span class="nav-item-icon">📧</span>Email</a>
+                    <a href="/aria/reports" class="nav-item"><span class="nav-item-icon">📄</span>Reports</a>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-label">Intelligence</div>
+                    <a href="/aria/intel" class="nav-item"><span class="nav-item-icon">🧠</span>Intelligence</a>
+                    <a href="/aria/search" class="nav-item"><span class="nav-item-icon">🔍</span>Smart Search</a>
+                </div>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="sidebar-stats" id="sidebarStats">
+                    <div class="text-muted text-xs">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="page">
+                <div class="page-header">
+                    <div>
+                        <div class="page-title">Calendar</div>
+                        <div class="page-subtitle">Upcoming meetings and consultations</div>
+                    </div>
+                    <div class="flex gap-2">
+                        <select id="daysFilter" class="input select btn-sm" onchange="loadMeetings()" style="width:140px">
+                            <option value="7">Next 7 days</option>
+                            <option value="14">Next 14 days</option>
+                            <option value="30" selected>Next 30 days</option>
+                            <option value="90">Next 90 days</option>
+                        </select>
+                        <button class="btn btn-secondary btn-sm" onclick="loadMeetings()">↻ Refresh</button>
+                        <button class="btn btn-primary btn-sm" onclick="openModal('scheduleMeetingModal')">+ Schedule</button>
+                    </div>
+                </div>
+
+                <div id="meetingsList" class="space-y-3">
+                    <div class="loading-overlay"><div class="loading-spinner"></div>Loading meetings...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Schedule Meeting Modal -->
+<div id="scheduleMeetingModal" class="modal-overlay">
+    <div class="modal modal-md">
+        <div class="modal-header">
+            <span class="modal-title">Schedule Meeting</span>
+            <button class="btn btn-ghost btn-icon" onclick="closeModal('scheduleMeetingModal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="input-group">
+                <label class="input-label">Client ID *</label>
+                <input id="meetClientId" class="input" placeholder="CL-XXXXXXXX">
+            </div>
+            <div class="input-group">
+                <label class="input-label">Title</label>
+                <input id="meetTitle" class="input" placeholder="Meeting title">
+            </div>
+            <div class="input-row">
+                <div class="input-group">
+                    <label class="input-label">Start Time *</label>
+                    <input id="meetStart" type="datetime-local" class="input">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">End Time *</label>
+                    <input id="meetEnd" type="datetime-local" class="input">
+                </div>
+            </div>
+            <div class="input-group">
+                <label class="input-label">Location</label>
+                <input id="meetLocation" class="input" placeholder="Google Meet, Zoom, Office...">
+            </div>
+            <div class="input-group">
+                <label class="input-label">Description</label>
+                <textarea id="meetDesc" class="input textarea" rows="2"></textarea>
+            </div>
+            <div class="flex items-center gap-2">
+                <input id="meetInvite" type="checkbox">
+                <label class="text-secondary text-sm">Invite client as guest</label>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('scheduleMeetingModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="scheduleMeeting()" id="scheduleBtn">Schedule Meeting</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add Notes Modal -->
+<div id="notesModal" class="modal-overlay">
+    <div class="modal modal-md">
+        <div class="modal-header">
+            <span class="modal-title">Add Meeting Notes</span>
+            <button class="btn btn-ghost btn-icon" onclick="closeModal('notesModal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <textarea id="notesText" class="input textarea" rows="5"
+                placeholder="Enter meeting notes..."></textarea>
+            <input type="hidden" id="notesEventId">
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('notesModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="saveNotes()">Save Notes</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+<script src="/static/js/api.js"></script>
+<script src="/static/js/utils.js"></script>
+<script src="/static/js/nav.js"></script>
+<script>
+function logout() { API.clear(); window.location.href = '/aria/'; }
+Nav.init();
+
+async function loadMeetings() {
+    const days = document.getElementById('daysFilter').value;
+    const container = document.getElementById('meetingsList');
+    container.innerHTML = '<div class="loading-overlay"><div class="loading-spinner"></div>Loading...</div>';
+
+    try {
+        const res = await API.get(`/meetings?days_ahead=${days}&max_results=50`);
+        const meetings = res.meetings || [];
+
+        if (!meetings.length) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">📅</div>
+                    <div class="empty-state-title">No upcoming meetings</div>
+                    <div class="empty-state-desc">Schedule a meeting to get started</div>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = meetings.map(m => `
+            <div class="card card-p" style="margin-bottom:12px">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <div class="font-semibold">${escapeHtml(m.title)}</div>
+                        <div class="text-muted text-sm mt-1">
+                            📅 ${formatDateTime(m.start_time)} → ${formatDateTime(m.end_time)}
+                        </div>
+                        ${m.location ? `<div class="text-secondary text-sm mt-1">📍 ${escapeHtml(m.location)}</div>` : ''}
+                        ${m.description ? `<div class="text-muted text-xs mt-2">${escapeHtml(m.description.substring(0,150))}</div>` : ''}
+                        ${m.attendees?.length ? `<div class="text-xs text-accent mt-1">👥 ${m.attendees.join(', ')}</div>` : ''}
+                    </div>
+                    <div class="flex gap-2">
+                        ${m.meet_link ? `<a href="${m.meet_link}" target="_blank" class="btn btn-secondary btn-sm">🎥 Join</a>` : ''}
+                        <button class="btn btn-secondary btn-sm"
+                            onclick="addNotes('${m.event_id}')">📝 Notes</button>
+                        <button class="btn btn-danger btn-sm"
+                            onclick="cancelMeeting('${m.event_id}')">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    } catch(e) {
+        container.innerHTML = `<div class="alert alert-error">Failed to load meetings: ${escapeHtml(e.message)}</div>`;
+    }
+}
+
+async function scheduleMeeting() {
+    const clientId = document.getElementById('meetClientId').value.trim();
+    const startRaw = document.getElementById('meetStart').value;
+    const endRaw = document.getElementById('meetEnd').value;
+
+    if (!clientId || !startRaw || !endRaw) {
+        Toast.error('Client ID, start and end time are required');
+        return;
+    }
+
+    const btn = document.getElementById('scheduleBtn');
+    setLoading(btn, true);
+
+    try {
+        const data = {
+            client_id: clientId,
+            title: document.getElementById('meetTitle').value.trim() || null,
+            start_time: new Date(startRaw).toISOString(),
+            end_time: new Date(endRaw).toISOString(),
+            description: document.getElementById('meetDesc').value.trim() || null,
+            location: document.getElementById('meetLocation').value.trim() || null,
+            invite_client: document.getElementById('meetInvite').checked
+        };
+
+        const res = await API.post('/meetings', data);
+        if (res.ok) {
+            Toast.success('Meeting scheduled!');
+            closeModal('scheduleMeetingModal');
+            loadMeetings();
+        } else {
+            Toast.error(res.detail || 'Failed');
+        }
+    } catch(e) {
+        Toast.error(e.message);
+    } finally {
+        setLoading(btn, false);
+    }
+}
+
+function addNotes(eventId) {
+    document.getElementById('notesEventId').value = eventId;
+    document.getElementById('notesText').value = '';
+    openModal('notesModal');
+}
+
+async function saveNotes() {
+    const eventId = document.getElementById('notesEventId').value;
+    const notes = document.getElementById('notesText').value.trim();
+    if (!notes) { Toast.error('Notes cannot be empty'); return; }
+
+    try {
+        await API.post(`/meetings/${eventId}/notes`, { notes });
+        Toast.success('Notes saved!');
+        closeModal('notesModal');
+    } catch(e) {
+        Toast.error('Failed to save notes');
+    }
+}
+
+async function cancelMeeting(eventId) {
+    if (!confirm('Cancel this meeting?')) return;
+    try {
+        await API.delete(`/meetings/${eventId}?notify_attendees=false`);
+        Toast.success('Meeting cancelled');
+        loadMeetings();
+    } catch(e) {
+        Toast.error('Failed to cancel meeting');
+    }
+}
+
+loadMeetings();
+</script>
+</body>
+</html>

@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARIA — Smart Search</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/aria.css">
+</head>
+<body>
+<div class="app-layout">
+    <div class="topbar">
+        <div class="topbar-brand">
+            <div class="topbar-logo">🤖</div>
+            <div><div class="topbar-title">ARIA</div>
+                <div class="topbar-subtitle">AI Relationship Intelligence</div></div>
+        </div>
+        <div class="topbar-right">
+            <div class="status-dot">Connected</div>
+            <button class="btn btn-secondary btn-sm" onclick="logout()">Sign Out</button>
+        </div>
+    </div>
+    <div class="app-body">
+        <div class="sidebar">
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-label">Main</div>
+                    <a href="/aria/dashboard" class="nav-item"><span class="nav-item-icon">📊</span>Dashboard</a>
+                    <a href="/aria/clients" class="nav-item"><span class="nav-item-icon">👥</span>Clients</a>
+                    <a href="/aria/chat" class="nav-item"><span class="nav-item-icon">💬</span>Chat with ARIA</a>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-label">Tools</div>
+                    <a href="/aria/calendar" class="nav-item"><span class="nav-item-icon">📅</span>Calendar</a>
+                    <a href="/aria/email" class="nav-item"><span class="nav-item-icon">📧</span>Email</a>
+                    <a href="/aria/reports" class="nav-item"><span class="nav-item-icon">📄</span>Reports</a>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-label">Intelligence</div>
+                    <a href="/aria/intel" class="nav-item"><span class="nav-item-icon">🧠</span>Intelligence</a>
+                    <a href="/aria/search" class="nav-item active"><span class="nav-item-icon">🔍</span>Smart Search</a>
+                </div>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="sidebar-stats" id="sidebarStats">
+                    <div class="text-muted text-xs">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="page">
+                <div class="page-header">
+                    <div>
+                        <div class="page-title">Smart Search</div>
+                        <div class="page-subtitle">
+                            Natural language search powered by AI
+                        </div>
+                    </div>
+                </div>
+
+                <!-- NL Search -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <span class="card-title">🔍 Natural Language Search</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="flex gap-3">
+                            <input id="nlInput" class="input"
+                                placeholder="e.g. high priority clients interested in AI automation"
+                                onkeydown="if(event.key==='Enter') runNLSearch()"
+                                style="flex:1">
+                            <button class="btn btn-primary" onclick="runNLSearch()">Search</button>
+                        </div>
+                        <div class="flex gap-2 mt-3" style="flex-wrap:wrap">
+                            <button class="quick-action-btn" onclick="setNL('high priority clients not yet contacted')">High priority uncontacted</button>
+                            <button class="quick-action-btn" onclick="setNL('clients interested in AI automation')">AI automation clients</button>
+                            <button class="quick-action-btn" onclick="setNL('clients who need immediate follow up')">Need follow up</button>
+                            <button class="quick-action-btn" onclick="setNL('clients likely to close this month')">Likely to close</button>
+                            <button class="quick-action-btn" onclick="setNL('won deals this quarter')">Won deals</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Smart Filter -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <span class="card-title">🎯 Smart Filter</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="flex gap-3">
+                            <input id="filterInput" class="input"
+                                placeholder="e.g. clients stuck in proposal stage for too long"
+                                onkeydown="if(event.key==='Enter') runFilter()"
+                                style="flex:1">
+                            <button class="btn btn-primary" onclick="runFilter()">Filter</button>
+                        </div>
+                        <div class="flex gap-2 mt-3" style="flex-wrap:wrap">
+                            <button class="quick-action-btn" onclick="setFilter('clients with no activity in 2 weeks')">Inactive 2 weeks</button>
+                            <button class="quick-action-btn" onclick="setFilter('high value clients at risk of churning')">Churn risk</button>
+                            <button class="quick-action-btn" onclick="setFilter('clients in proposal stage')">In proposal stage</button>
+                            <button class="quick-action-btn" onclick="setFilter('new clients from this month')">New this month</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results -->
+                <div id="searchResults" class="hidden">
+                    <div class="flex justify-between items-center mb-3">
+                        <div>
+                            <span class="font-semibold" id="resultsTitle"></span>
+                            <span class="text-muted text-sm ml-2" id="resultsCount"></span>
+                        </div>
+                        <div class="text-muted text-xs" id="resultsInterpretation"></div>
+                    </div>
+                    <div id="resultsContent"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+<script src="/static/js/api.js"></script>
+<script src="/static/js/utils.js"></script>
+<script src="/static/js/nav.js"></script>
+<script>
+function logout() { API.clear(); window.location.href = '/aria/'; }
+Nav.init();
+
+function setNL(q) {
+    document.getElementById('nlInput').value = q;
+    runNLSearch();
+}
+
+function setFilter(q) {
+    document.getElementById('filterInput').value = q;
+    runFilter();
+}
+
+async function runNLSearch() {
+    const query = document.getElementById('nlInput').value.trim();
+    if (!query) return;
+
+    showLoading('Natural Language Search', query);
+
+    try {
+        const res = await API.post('/search', { query });
+        showResults(
+            `Search: "${query}"`,
+            res.matched_clients || [],
+            res.total_matches || 0,
+            res.search_interpretation || ''
+        );
+    } catch(e) {
+        Toast.error('Search failed: ' + e.message);
+        hideResults();
+    }
+}
+
+async function runFilter() {
+    const criteria = document.getElementById('filterInput').value.trim();
+    if (!criteria) return;
+
+    showLoading('Smart Filter', criteria);
+
+    try {
+        const res = await API.post('/search/filter', { criteria });
+        showResults(
+            `Filter: "${criteria}"`,
+            res.matched_clients || [],
+            res.total_matches || 0,
+            res.criteria_interpretation || ''
+        );
+    } catch(e) {
+        Toast.error('Filter failed: ' + e.message);
+        hideResults();
+    }
+}
+
+function showLoading(type, query) {
+    document.getElementById('searchResults').classList.remove('hidden');
+    document.getElementById('resultsTitle').textContent = `${type}...`;
+    document.getElementById('resultsCount').textContent = '';
+    document.getElementById('resultsInterpretation').textContent = '';
+    document.getElementById('resultsContent').innerHTML =
+        '<div class="loading-overlay"><div class="loading-spinner"></div>AI is searching...</div>';
+}
+
+function hideResults() {
+    document.getElementById('searchResults').classList.add('hidden');
+}
+
+function showResults(title, clients, count, interpretation) {
+    document.getElementById('resultsTitle').textContent = title;
+    document.getElementById('resultsCount').textContent = `${count} matches`;
+    document.getElementById('resultsInterpretation').textContent =
+        interpretation ? `AI interpreted as: ${interpretation}` : '';
+
+    const container = document.getElementById('resultsContent');
+
+    if (!clients.length) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">🔍</div>
+                <div class="empty-state-title">No matches found</div>
+                <div class="empty-state-desc">Try rephrasing your search query</div>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = `
+        <div class="table-wrapper">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Client</th>
+                        <th>Company</th>
+                        <th>Service</th>
+                        <th>Priority</th>
+                        <th>Stage</th>
+                        <th>Follow-up</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${clients.map(c => `
+                        <tr onclick="window.location='/aria/clients'">
+                            <td>
+                                <div class="font-semibold">${escapeHtml(c.name)}</div>
+                                <div class="text-muted text-xs">${escapeHtml(c.client_id)}</div>
+                            </td>
+                            <td>${escapeHtml(c.company || '—')}</td>
+                            <td class="text-xs">${escapeHtml(c.service || '—')}</td>
+                            <td>${priorityBadge(c.priority)}</td>
+                            <td>${stageBadge(c.stage)}</td>
+                            <td class="text-xs text-muted">${c.next_follow_up || '—'}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    Toast.success(`Found ${count} clients`);
+}
+</script>
+</body>
+</html>
