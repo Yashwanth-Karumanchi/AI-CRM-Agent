@@ -22,6 +22,24 @@
             <div class="status-dot">Connected</div>
             <button class="btn btn-secondary btn-sm" onclick="logout()">Sign Out</button>
         </div>
+        <div class="flex gap-2">
+            <button class="btn btn-secondary btn-sm"
+                onclick="startAutoRefresh();loadClients()"
+                id="liveRefreshBtn">
+                🔴 Live Refresh
+            </button>
+            <button class="btn btn-secondary btn-sm"
+                onclick="stopAutoRefresh();loadClients()">
+                ↻ Refresh
+            </button>
+            <a href="/aria/import" class="btn btn-secondary btn-sm">
+                📥 Bulk Import
+            </a>
+            <button class="btn btn-primary btn-sm"
+                onclick="openModal('addClientModal')">
+                + New Client
+            </button>
+        </div>
     </div>
     <div class="app-body">
         <div class="sidebar">
@@ -523,6 +541,30 @@ async function createClient() {
     } finally {
         setLoading(btn, false);
     }
+}
+
+// Live refresh every 5 seconds if import might be running
+let autoRefreshInterval = null;
+
+function startAutoRefresh() {
+    if (autoRefreshInterval) return;
+    autoRefreshInterval = setInterval(async () => {
+        await loadClients();
+    }, 5000);
+}
+
+function stopAutoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+    }
+}
+
+// Start auto-refresh if came from import page
+if (document.referrer.includes('/aria/import')) {
+    startAutoRefresh();
+    // Stop after 2 minutes
+    setTimeout(stopAutoRefresh, 120000);
 }
 
 loadClients();

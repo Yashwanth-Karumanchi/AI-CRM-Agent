@@ -331,78 +331,40 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- Phase 3: Importing -->
+                
+                <!-- Phase 3: Importing (Live) -->
                 <div id="phaseImporting" class="hidden">
                     <div class="card">
-                        <div class="card-body">
-                            <div class="text-center mb-4">
-                                <div style="font-size:48px;margin-bottom:12px">
-                                    ⚡
-                                </div>
-                                <div class="font-semibold mb-1">
-                                    Importing Clients...
-                                </div>
-                                <div class="text-muted text-sm">
-                                    Please wait, this may take a moment
-                                </div>
+                        <div class="card-header">
+                            <span class="card-title">⚡ Importing Live...</span>
+                            <div class="flex items-center gap-3">
+                                <span class="text-accent font-bold"
+                                    id="liveCount">0</span>
+                                <span class="text-muted text-sm">/</span>
+                                <span class="text-muted text-sm"
+                                    id="liveTotal">0</span>
+                                <span class="text-muted text-sm">clients</span>
                             </div>
-                            <div class="progress-bar" style="height:6px;margin-bottom:24px">
+                        </div>
+                        <div class="card-body">
+                            <div class="progress-bar mb-3" style="height:8px">
                                 <div class="progress-fill"
                                     id="importProgress"
-                                    style="width:0%;transition:width 0.5s ease">
+                                    style="width:0%;transition:width 0.3s ease">
                                 </div>
                             </div>
-                            <div id="importSteps">
-                                <div class="progress-step">
-                                    <div class="step-icon step-active"
-                                        id="step1Icon">1</div>
-                                    <div>
-                                        <div class="font-semibold text-sm">
-                                            Parsing file
-                                        </div>
-                                        <div class="text-muted text-xs">
-                                            Reading and validating rows
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="progress-step">
-                                    <div class="step-icon step-pending"
-                                        id="step2Icon">2</div>
-                                    <div>
-                                        <div class="font-semibold text-sm">
-                                            Checking duplicates
-                                        </div>
-                                        <div class="text-muted text-xs">
-                                            Comparing against existing CRM
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="progress-step">
-                                    <div class="step-icon step-pending"
-                                        id="step3Icon">3</div>
-                                    <div>
-                                        <div class="font-semibold text-sm">
-                                            Creating client records
-                                        </div>
-                                        <div class="text-muted text-xs">
-                                            Saving to Google Sheets
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="progress-step"
-                                    style="border-bottom:none">
-                                    <div class="step-icon step-pending"
-                                        id="step4Icon">4</div>
-                                    <div>
-                                        <div class="font-semibold text-sm">
-                                            Finalizing
-                                        </div>
-                                        <div class="text-muted text-xs">
-                                            Generating import report
-                                        </div>
-                                    </div>
-                                </div>
+                            <div class="text-secondary text-sm mb-3"
+                                id="liveStatus">
+                                Preparing...
+                            </div>
+                            <div id="liveLog"
+                                style="max-height:300px;overflow-y:auto;
+                                font-family:monospace;font-size:11px;
+                                background:var(--bg-primary);
+                                border:1px solid var(--border);
+                                border-radius:var(--radius-sm);
+                                padding:12px;
+                                display:flex;flex-direction:column;gap:2px">
                             </div>
                         </div>
                     </div>
@@ -485,6 +447,8 @@ Nav.init();
 
 let selectedFile = null;
 let previewData = null;
+let importedCount = 0;
+let totalToImport = 0;
 
 // ── Drag & Drop ────────────────────────────────────────
 
@@ -509,8 +473,6 @@ function handleFileSelect(e) {
     if (file) processFile(file);
 }
 
-// ── Phase Management ───────────────────────────────────
-
 function showPhase(phase) {
     ['phaseUpload','phasePreview',
      'phaseImporting','phaseResults'].forEach(id => {
@@ -522,6 +484,7 @@ function showPhase(phase) {
 function resetImport() {
     selectedFile = null;
     previewData = null;
+    importedCount = 0;
     document.getElementById('fileInput').value = '';
     showPhase('phaseUpload');
 }
@@ -537,9 +500,7 @@ async function processFile(file) {
 
     selectedFile = file;
     showPhase('phasePreview');
-
-    document.getElementById('previewFilename').textContent =
-        file.name;
+    document.getElementById('previewFilename').textContent = file.name;
     document.getElementById('previewTotal').textContent = '...';
     document.getElementById('previewCols').textContent = '...';
     document.getElementById('previewErrors').textContent = '...';
@@ -548,27 +509,20 @@ async function processFile(file) {
         const formData = new FormData();
         formData.append('file', file);
 
-        const authHeader = localStorage.getItem('aria_auth');
-        const baseUrl = localStorage.getItem('aria_url');
-
         const res = await fetch(
-            `${baseUrl}/clients/import/preview`,
+            `${API.getBaseUrl()}/clients/import/preview`,
             {
                 method: 'POST',
-                headers: { 'Authorization': authHeader },
+                headers: { 'Authorization': localStorage.getItem('aria_auth') },
                 body: formData
             }
         );
 
         const data = await res.json();
-
-        if (!res.ok) {
-            throw new Error(data.detail || 'Preview failed');
-        }
+        if (!res.ok) throw new Error(data.detail || 'Preview failed');
 
         previewData = data;
         renderPreview(data);
-
     } catch(e) {
         Toast.error('Preview failed: ' + e.message);
         resetImport();
@@ -583,16 +537,12 @@ function renderPreview(data) {
     document.getElementById('previewErrors').textContent =
         data.validation_errors.length;
 
-    // Detected columns
     document.getElementById('detectedCols').innerHTML =
         data.detected_columns.map(c =>
             `<span class="badge badge-stage">${escapeHtml(c)}</span>`
         ).join('');
 
-    // Validation errors
-    const errSection = document.getElementById(
-        'validationErrorsSection'
-    );
+    const errSection = document.getElementById('validationErrorsSection');
     if (data.validation_errors.length) {
         errSection.classList.remove('hidden');
         document.getElementById('validationErrors').innerHTML =
@@ -603,82 +553,100 @@ function renderPreview(data) {
         errSection.classList.add('hidden');
     }
 
-    // Sample table
     const samples = data.sample_rows || [];
     if (samples.length) {
         const cols = Object.keys(samples[0]);
         document.getElementById('previewTable').innerHTML = `
             <thead><tr>
-                ${cols.map(c =>
-                    `<th>${escapeHtml(c)}</th>`
-                ).join('')}
+                ${cols.map(c => `<th>${escapeHtml(c)}</th>`).join('')}
             </tr></thead>
             <tbody>
                 ${samples.map(row => `
-                    <tr>
-                        ${cols.map(c =>
-                            `<td class="text-xs">${escapeHtml(String(row[c] || '—'))}</td>`
-                        ).join('')}
-                    </tr>
+                    <tr>${cols.map(c =>
+                        `<td class="text-xs">${escapeHtml(String(row[c] || '—'))}</td>`
+                    ).join('')}</tr>
                 `).join('')}
             </tbody>
         `;
     }
 
-    // Update button
     document.getElementById('importBtn').textContent =
         `🚀 Import ${data.total_valid_rows} Clients`;
 
     if (!data.ready_to_import) {
         document.getElementById('importBtn').disabled = true;
-        Toast.warning('No valid rows to import');
     }
 }
 
-// ── Import ─────────────────────────────────────────────
+// ── Live Streaming Import ──────────────────────────────
 
 async function startImport() {
     if (!selectedFile) return;
 
     showPhase('phaseImporting');
+    importedCount = 0;
+    totalToImport = previewData?.total_valid_rows || 0;
 
-    // Animate steps
-    await animateStep('step1Icon', 300);
-    await animateStep('step2Icon', 800);
-    await animateStep('step3Icon', 500);
+    // Reset progress UI
+    document.getElementById('importProgress').style.width = '0%';
+    document.getElementById('liveCount').textContent = '0';
+    document.getElementById('liveTotal').textContent = totalToImport;
+    document.getElementById('liveStatus').textContent =
+        'Starting import...';
+    document.getElementById('liveLog').innerHTML = '';
 
-    document.getElementById('importProgress').style.width = '70%';
+    const checkDups = document.getElementById('checkDuplicates').checked;
+    const formData = new FormData();
+    formData.append('file', selectedFile);
 
     try {
-        const formData = new FormData();
-        formData.append('file', selectedFile);
-
-        const checkDups = document.getElementById(
-            'checkDuplicates'
-        ).checked;
-        const authHeader = localStorage.getItem('aria_auth');
-        const baseUrl = localStorage.getItem('aria_url');
-
         const res = await fetch(
-            `${baseUrl}/clients/import?check_duplicates=${checkDups}`,
+            `${API.getBaseUrl()}/clients/import/stream?check_duplicates=${checkDups}`,
             {
                 method: 'POST',
-                headers: { 'Authorization': authHeader },
+                headers: {
+                    'Authorization': localStorage.getItem('aria_auth')
+                },
                 body: formData
             }
         );
 
-        const data = await res.json();
-
         if (!res.ok) {
-            throw new Error(data.detail || 'Import failed');
+            const err = await res.json();
+            throw new Error(err.detail || 'Import failed');
         }
 
-        document.getElementById('importProgress').style.width = '100%';
-        await animateStep('step4Icon', 0);
-        await sleep(500);
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let finalData = null;
 
-        showResults(data);
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop();
+
+            for (const line of lines) {
+                if (!line.startsWith('data: ')) continue;
+                try {
+                    const event = JSON.parse(line.slice(6));
+                    handleImportEvent(event);
+                    if (event.type === 'complete') {
+                        finalData = event;
+                    }
+                } catch(e) {
+                    // skip malformed events
+                }
+            }
+        }
+
+        if (finalData) {
+            await sleep(500);
+            showResults(finalData);
+        }
 
     } catch(e) {
         Toast.error('Import failed: ' + e.message);
@@ -686,95 +654,120 @@ async function startImport() {
     }
 }
 
-async function animateStep(iconId, delay) {
-    await sleep(delay);
-    const el = document.getElementById(iconId);
-    el.className = 'step-icon step-active';
-    el.textContent = '⟳';
-    await sleep(600);
-    el.className = 'step-icon step-done';
-    el.textContent = '✓';
+function handleImportEvent(event) {
+    const statusEl = document.getElementById('liveStatus');
+    const progressEl = document.getElementById('importProgress');
+    const countEl = document.getElementById('liveCount');
+    const logEl = document.getElementById('liveLog');
+
+    if (event.type === 'start') {
+        statusEl.textContent = event.message;
+        logEl.innerHTML += `
+            <div class="text-accent text-xs">
+                ▶ ${escapeHtml(event.message)}
+            </div>`;
+    }
+
+    else if (event.type === 'progress') {
+        statusEl.textContent = event.message;
+        if (event.percent) {
+            progressEl.style.width = event.percent + '%';
+        }
+        logEl.innerHTML += `
+            <div class="text-secondary text-xs">
+                ⟳ ${escapeHtml(event.message)}
+            </div>`;
+        logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    else if (event.type === 'client_added') {
+        importedCount++;
+        countEl.textContent = importedCount;
+        const pct = Math.min(
+            90,
+            20 + Math.round((importedCount / totalToImport) * 70)
+        );
+        progressEl.style.width = pct + '%';
+
+        const c = event.client;
+        logEl.innerHTML += `
+            <div class="text-success text-xs">
+                ✅ ${escapeHtml(c.name)}
+                <span class="text-muted ml-1">${escapeHtml(c.client_id)}</span>
+                ${c.email ? `<span class="text-muted ml-1">${escapeHtml(c.email)}</span>` : ''}
+            </div>`;
+        logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    else if (event.type === 'complete') {
+        progressEl.style.width = '100%';
+        statusEl.textContent = event.message;
+        logEl.innerHTML += `
+            <div class="text-accent font-semibold text-xs mt-2">
+                🎉 ${escapeHtml(event.message)}
+            </div>`;
+    }
+
+    else if (event.type === 'done') {
+        progressEl.style.width = '100%';
+    }
 }
 
 function showResults(data) {
     showPhase('phaseResults');
 
-    document.getElementById('resultImported').textContent =
-        data.imported;
-    document.getElementById('resultSkipped').textContent =
-        data.skipped;
-    document.getElementById('resultFailed').textContent =
-        data.failed;
+    document.getElementById('resultImported').textContent = data.imported;
+    document.getElementById('resultSkipped').textContent = data.skipped;
+    document.getElementById('resultFailed').textContent = data.failed;
 
-    // Imported
     const imported = data.imported_clients || [];
-    document.getElementById('importedList').innerHTML =
-        imported.length ? `
-            <div class="input-label mb-2 text-success">
-                ✅ Successfully Imported (${imported.length})
-            </div>
-            <div class="table-wrapper">
-                <table class="table">
-                    <thead><tr>
-                        <th>Name</th>
-                        <th>Client ID</th>
-                        <th>Email</th>
-                    </tr></thead>
-                    <tbody>
-                        ${imported.map(c => `
-                            <tr>
-                                <td class="font-semibold">
-                                    ${escapeHtml(c.name)}
-                                </td>
-                                <td class="text-accent text-xs">
-                                    ${escapeHtml(c.client_id)}
-                                </td>
-                                <td class="text-muted text-xs">
-                                    ${escapeHtml(c.email || '—')}
-                                </td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-        ` : '';
+    document.getElementById('importedList').innerHTML = imported.length ? `
+        <div class="input-label mb-2 text-success">
+            ✅ Imported (${imported.length})
+        </div>
+        <div class="table-wrapper">
+            <table class="table">
+                <thead><tr>
+                    <th>Name</th><th>Client ID</th><th>Email</th>
+                </tr></thead>
+                <tbody>
+                    ${imported.map(c => `
+                        <tr>
+                            <td class="font-semibold">${escapeHtml(c.name)}</td>
+                            <td class="text-accent text-xs">${escapeHtml(c.client_id)}</td>
+                            <td class="text-muted text-xs">${escapeHtml(c.email || '—')}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    ` : '';
 
-    // Skipped
     const skipped = data.skipped_clients || [];
-    document.getElementById('skippedList').innerHTML =
-        skipped.length ? `
-            <div class="input-label mb-2 text-warning mt-4">
-                ⚠️ Skipped - Duplicates (${skipped.length})
+    document.getElementById('skippedList').innerHTML = skipped.length ? `
+        <div class="input-label mb-2 text-warning mt-4">
+            ⚠️ Skipped (${skipped.length})
+        </div>
+        ${skipped.map(c => `
+            <div class="text-xs text-muted" style="padding:2px 0">
+                ${escapeHtml(c.name)} — ${escapeHtml(c.reason)}
             </div>
-            <div style="font-size:12px;color:var(--text-muted)">
-                ${skipped.map(c =>
-                    `<div style="padding:3px 0">
-                        ${escapeHtml(c.name)} — ${escapeHtml(c.email || '')}
-                        — ${escapeHtml(c.reason)}
-                    </div>`
-                ).join('')}
-            </div>
-        ` : '';
+        `).join('')}
+    ` : '';
 
-    // Failed
     const failed = data.failed_clients || [];
-    document.getElementById('failedList').innerHTML =
-        failed.length ? `
-            <div class="input-label mb-2 text-error mt-4">
-                ❌ Failed (${failed.length})
+    document.getElementById('failedList').innerHTML = failed.length ? `
+        <div class="input-label mb-2 text-error mt-4">
+            ❌ Failed (${failed.length})
+        </div>
+        ${failed.map(c => `
+            <div class="text-xs text-error" style="padding:2px 0">
+                ${escapeHtml(c.name)} — ${escapeHtml(c.error)}
             </div>
-            <div style="font-size:12px;color:var(--text-muted)">
-                ${failed.map(c =>
-                    `<div style="padding:3px 0">
-                        ${escapeHtml(c.name)} — ${escapeHtml(c.error)}
-                    </div>`
-                ).join('')}
-            </div>
-        ` : '';
+        `).join('')}
+    ` : '';
 
-    Toast.success(
-        `Import complete! ${data.imported} clients added.`
-    );
+    Toast.success(`Import complete! ${data.imported} clients added.`);
 }
 </script>
 </body>

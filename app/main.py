@@ -2,6 +2,8 @@ from fastapi import (
     FastAPI, Depends, UploadFile,
     File, HTTPException, Query
 )
+from fastapi.responses import StreamingResponse
+import asyncio
 from app.services.importer import parse_excel, parse_csv
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, Response
@@ -1940,4 +1942,55 @@ ARIA:"""
                 "Rate limit reached. Please wait 30 seconds and try again."
             )
         raise HTTPException(500, error_msg)
-    
+
+# ── Live Import Stream ─────────────────────────────────
+
+@app.post("/clients/import/stream", tags=["Bulk Operations"])
+async def bulk_import_stream(
+    file: UploadFile = File(...),
+    check_duplicates: bool = Query(True),
+    username: str = Depends(verify_credentials)
+):
+    """
+    Import clients with live Server-Sent Events progress stream.
+    Connect via EventSource in the browser for real-time updates.
+    """
+    from app.services.importer import parse_excel, parse_csv
+    from app.services.importer import bulk_import_clients_stream
+
+    file_bytes = await file.read()
+    filename = file.filename.lower()
+
+    try:
+        if filename.endswith(".xlsx") or filename.endswith(".xls"):
+            rows, detected_cols, parse_errors = \
+                parse_excel(file_bytes)
+        elif filename.endswith(".csv"):
+            rows, detected_cols, parse_errors = \
+                parse_csv(file_bytes)
+        else:
+            raise HTTPException(400, "File must be .xlsx or .csv")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    async def event_stream():
+        import json as _json
+
+        async for event in bulk_import_clients_stream(
+            rows, sheets,
+            check_duplicates=check_duplicates
+        ):
+            yield f"data: {_json.dumps(event)}\n\n"
+
+        # Final done event
+        yield "data: {\"type\": \"done\"}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Access-Control-Allow-Origin": "*"
+        }
+    )
