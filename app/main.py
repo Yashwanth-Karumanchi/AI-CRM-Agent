@@ -1845,8 +1845,18 @@ async def aria_chat(
         }
 
     except Exception as e:
+        error_msg = str(e)
         logger.error(f"ARIA chat failed: {e}")
-        raise HTTPException(500, str(e))
+
+        if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
+            raise HTTPException(
+                429,
+                "ARIA is thinking too hard! "
+                "Please wait 30 seconds and try again. "
+                "Gemini free tier has a per-minute limit."
+            )
+
+        raise HTTPException(500, error_msg)
 
 
 async def execute_aria_action(
