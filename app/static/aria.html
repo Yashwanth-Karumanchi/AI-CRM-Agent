@@ -1312,8 +1312,7 @@ async function sendChatMessage() {
 
         removeThinking(thinkingId);
 
-        const reply = res.response ||
-            'Sorry, I could not process that.';
+        const reply = res.response
 
         if (res.context &&
                 Object.keys(res.context).length > 0) {
