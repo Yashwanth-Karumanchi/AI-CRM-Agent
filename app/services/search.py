@@ -50,7 +50,7 @@ async def natural_language_search(
     """
 
     response = model.models.generate_content(
-        model="models/gemini-2.5-flash",
+        model="models/gemma-4-26b-a4b-it",
         contents=prompt
     )
 
@@ -148,7 +148,7 @@ async def detect_patterns(
     """
 
     response = model.models.generate_content(
-        model="models/gemini-2.5-flash",
+        model="models/gemma-4-26b-a4b-it",
         contents=prompt
     )
 
@@ -212,7 +212,7 @@ async def intelligent_filter(
     """
 
     response = model.models.generate_content(
-        model="models/gemini-2.5-flash",
+        model="models/gemma-4-26b-a4b-it",
         contents=prompt
     )
 
@@ -289,7 +289,7 @@ async def revenue_forecast(
     """
 
     response = model.models.generate_content(
-        model="models/gemini-2.5-flash",
+        model="models/gemma-4-26b-a4b-it",
         contents=prompt
     )
 
@@ -372,7 +372,7 @@ async def win_loss_analysis(
     """
 
     response = model.models.generate_content(
-        model="models/gemini-2.5-flash",
+        model="models/gemma-4-26b-a4b-it",
         contents=prompt
     )
 

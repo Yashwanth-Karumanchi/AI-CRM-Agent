@@ -56,7 +56,7 @@ async def extract_client_from_pdf(pdf_text: str) -> dict:
     """
 
     response = model.models.generate_content(
-        model="models/gemini-2.5-flash",
+        model="models/gemma-4-26b-a4b-it",
         contents=prompt
     )
     text = response.text.strip()
@@ -97,7 +97,7 @@ async def analyze_client(client: dict) -> dict:
     """
 
     response = model.models.generate_content(
-        model="models/gemini-2.5-flash",
+        model="models/gemma-4-26b-a4b-it",
         contents=prompt
     )
     text = response.text.strip()
@@ -139,7 +139,7 @@ async def draft_email(
     """
 
     response = model.models.generate_content(
-        model="models/gemini-2.5-flash",
+        model="models/gemma-4-26b-a4b-it",
         contents=prompt
     )
     text = response.text.strip()
@@ -184,7 +184,7 @@ async def chat(
     """
 
     response = model.models.generate_content(
-        model="models/gemini-2.5-flash",
+        model="models/gemma-4-26b-a4b-it",
         contents=prompt
     )
     return response.text.strip()

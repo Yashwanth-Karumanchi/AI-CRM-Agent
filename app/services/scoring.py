@@ -50,7 +50,7 @@ async def score_client(client: dict, model) -> dict:
     """
 
     response = model.models.generate_content(
-        model="models/gemini-2.5-flash",
+        model="models/gemma-4-26b-a4b-it",
         contents=prompt
     )
 
@@ -126,7 +126,7 @@ async def score_pipeline(clients: List[dict], model) -> dict:
     """
 
     response = model.models.generate_content(
-        model="models/gemini-2.5-flash",
+        model="models/gemma-4-26b-a4b-it",
         contents=prompt
     )
 
@@ -191,7 +191,7 @@ async def detect_similar_clients(
     """
 
     response = model.models.generate_content(
-        model="models/gemini-2.5-flash",
+        model="models/gemma-4-26b-a4b-it",
         contents=prompt
     )
 
@@ -262,7 +262,7 @@ async def get_follow_up_recommendations(
     """
 
     response = model.models.generate_content(
-        model="models/gemini-2.5-flash",
+        model="models/gemma-4-26b-a4b-it",
         contents=prompt
     )
 

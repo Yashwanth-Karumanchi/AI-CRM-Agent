@@ -1640,7 +1640,7 @@ async def aria_chat(
         )
 
         intent_response = model.models.generate_content(
-            model="models/gemini-2.5-flash",
+            model="models/gemma-4-26b-a4b-it",
             contents=intent_prompt
         )
 
@@ -1785,7 +1785,7 @@ async def aria_chat(
         response_prompt += "ARIA response:"
 
         final_response = model.models.generate_content(
-            model="models/gemini-2.5-flash",
+            model="models/gemma-4-26b-a4b-it",
             contents=response_prompt
         )
 
