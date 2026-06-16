@@ -1541,7 +1541,7 @@ async def aria_chat(
         settings = get_settings()
 
         pipeline = await sheets.get_pipeline_summary()
-        clients = await sheets.get_all_clients(limit=10)
+        clients = await sheets.get_all_clients(limit=50)
 
         client_list = [
             {
@@ -1549,35 +1549,92 @@ async def aria_chat(
                 "name": c.get("name"),
                 "company": c.get("company"),
                 "stage": c.get("stage"),
-                "priority": c.get("priority")
+                "priority": c.get("priority"),
+                "email": c.get("email"),
+                "next_follow_up": c.get("next_follow_up")
             }
             for c in clients
         ]
 
-        context = (
-            f"You are ARIA, an AI Relationship Intelligence Assistant.\n"
-            f"Current pipeline: {pipeline.get('total_clients', 0)} total clients, "
-            f"{pipeline.get('high_priority_pending_count', 0)} high priority pending.\n"
-            f"Stage counts: {json.dumps(pipeline.get('stage_counts', {}))}\n"
-            f"Recent clients: {json.dumps(client_list)}\n\n"
-            f"Respond conversationally and helpfully. Keep responses concise.\n\n"
-            f"User: {data.message}"
+        # Build full conversation history
+        history_text = ""
+        if data.history and len(data.history) > 0:
+            history_text = "\n\nFULL CONVERSATION HISTORY:\n"
+            history_text += "=" * 40 + "\n"
+            for msg in data.history:
+                role = "User" if msg.role == "user" else "ARIA"
+                history_text += f"{role}: {msg.content}\n\n"
+            history_text += "=" * 40 + "\n"
+
+        # Session context
+        session_text = ""
+        if data.session_context:
+            ctx = data.session_context
+            if ctx.get("lastClientName"):
+                session_text = (
+                    f"\nLast discussed client: "
+                    f"{ctx.get('lastClientName')} "
+                    f"({ctx.get('lastClientId', '')})\n"
+                )
+
+        system_context = (
+            f"You are ARIA, an AI Relationship Intelligence "
+            f"Assistant for a CRM system.\n\n"
+            f"CRITICAL INSTRUCTIONS:\n"
+            f"1. Remember EVERYTHING from the conversation history below\n"
+            f"2. When user says 'she/he/they/it/that client' — "
+            f"look at history to identify who they mean\n"
+            f"3. When user says 'send it/do it/update it' — "
+            f"look at history to understand what 'it' refers to\n"
+            f"4. Always maintain full context across the conversation\n"
+            f"5. Be conversational, concise, and actionable\n\n"
+            f"CURRENT CRM DATA:\n"
+            f"Total Clients: {pipeline.get('total_clients', 0)}\n"
+            f"High Priority Pending: "
+            f"{pipeline.get('high_priority_pending_count', 0)}\n"
+            f"Won: {pipeline.get('won_count', 0)}\n"
+            f"Lost: {pipeline.get('lost_count', 0)}\n"
+            f"Stage Counts: "
+            f"{json.dumps(pipeline.get('stage_counts', {}))}\n\n"
+            f"ALL CLIENTS:\n"
+            f"{json.dumps(client_list, indent=2)}\n"
+            f"{session_text}"
+            f"{history_text}\n"
+            f"Current message from User: {data.message}\n\n"
+            f"ARIA response:"
         )
 
         model = genai.Client(api_key=settings.gemini_api_key)
         response = model.models.generate_content(
             model="models/gemini-2.5-flash",
-            contents=context
+            contents=system_context
         )
 
         reply = response.text.strip()
+
+        # Extract any client mentioned for session context
+        mentioned_client = None
+        for c in clients:
+            if (c.get("name", "").lower() in data.message.lower() or
+                c.get("client_id", "").lower() in data.message.lower()):
+                mentioned_client = c
+                break
+
+        context_update = {}
+        if mentioned_client:
+            context_update = {
+                "lastClientId": mentioned_client.get("client_id"),
+                "lastClientName": mentioned_client.get("name"),
+                "lastAction": data.message
+            }
 
         await sheets.log_agent("ARIA_CHAT", data.message, reply)
 
         return {
             "ok": True,
             "message": data.message,
-            "response": reply
+            "response": reply,
+            "context": context_update
         }
 
     except Exception as e:

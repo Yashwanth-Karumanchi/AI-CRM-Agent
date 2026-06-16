@@ -118,9 +118,15 @@ class EmailSend(BaseModel):
             raise ValueError("Field cannot be empty")
         return v.strip()
 
+class HistoryMessage(BaseModel):
+    role: str
+    content: str
+
 class AgentChat(BaseModel):
     message: str
     client_id: Optional[str] = None
+    history: Optional[List[HistoryMessage]] = None
+    session_context: Optional[dict] = None
 
     @field_validator("message")
     @classmethod

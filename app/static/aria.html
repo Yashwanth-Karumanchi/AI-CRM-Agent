@@ -816,6 +816,12 @@
 let API_URL = '';
 let AUTH_HEADER = '';
 let allClients = [];
+let chatHistory = [];
+let sessionContext = {
+    lastClientId: null,
+    lastClientName: null,
+    lastAction: null
+};
 
 // ─── Auth ──────────────────────────────────────────────
 async function login() {
@@ -1267,18 +1273,33 @@ async function sendChatMessage() {
 
     input.value = '';
 
-    // Add user message
-    addChatMessage('user', message);
+    // Add to history before sending
+    chatHistory.push({ role: 'user', content: message });
 
-    // Show typing
+    addChatMessage('user', message);
     const typingId = addTypingIndicator();
 
     try {
-        const res = await api('POST', '/aria/chat', { message });
+        const res = await api('POST', '/aria/chat', {
+            message: message,
+            history: chatHistory.slice(0, -1),
+            session_context: sessionContext
+        });
+
         removeTypingIndicator(typingId);
-        addChatMessage('aria', res.response || 'Sorry, I could not process that.');
+        const reply = res.response || 'Sorry, I could not process that.';
+
+        // Update session context if returned
+        if (res.context && Object.keys(res.context).length > 0) {
+            Object.assign(sessionContext, res.context);
+        }
+
+        chatHistory.push({ role: 'assistant', content: reply });
+        addChatMessage('aria', reply);
+
     } catch (e) {
         removeTypingIndicator(typingId);
+        chatHistory.pop();
         addChatMessage('aria', 'Connection error. Please try again.');
     }
 }
@@ -1328,6 +1349,12 @@ function removeTypingIndicator(id) {
 }
 
 function clearChat() {
+    chatHistory = [];
+    sessionContext = {
+        lastClientId: null,
+        lastClientName: null,
+        lastAction: null
+    };
     document.getElementById('chatMessages').innerHTML = `
         <div class="flex gap-3 fade-in">
             <div class="w-8 h-8 rounded-full bg-aria-500 flex items-center justify-center text-sm flex-shrink-0">🤖</div>
