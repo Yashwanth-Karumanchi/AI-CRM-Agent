@@ -509,13 +509,10 @@ async function processFile(file) {
         const formData = new FormData();
         formData.append('file', file);
 
-        const res = await fetch(
-            `${API.getBaseUrl()}/clients/import/preview`,
-            {
-                method: 'POST',
-                headers: { 'Authorization': localStorage.getItem('aria_auth') },
-                body: formData
-            }
+        const res = await API.upload(
+            'POST',
+            '/clients/import/preview',
+            formData
         );
 
         const data = await res.json();
@@ -600,15 +597,10 @@ async function startImport() {
     formData.append('file', selectedFile);
 
     try {
-        const res = await fetch(
-            `${API.getBaseUrl()}/clients/import/stream?check_duplicates=${checkDups}`,
-            {
-                method: 'POST',
-                headers: {
-                    'Authorization': localStorage.getItem('aria_auth')
-                },
-                body: formData
-            }
+        const res = await API.upload(
+            'POST',
+            `/clients/import/stream?check_duplicates=${checkDups}`,
+            formData
         );
 
         if (!res.ok) {

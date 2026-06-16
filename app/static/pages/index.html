@@ -147,10 +147,8 @@
 
 <script src="/static/js/api.js"></script>
 <script>
-// Auto-redirect if already logged in
-if (API.loadFromStorage()) {
-    window.location.href = '/aria/dashboard';
-}
+// Clear any stale auth that might cause 401 loops
+API.clear();
 
 async function login() {
     const url = document.getElementById('loginUrl').value.trim();
@@ -171,22 +169,44 @@ async function login() {
     errorEl.classList.add('hidden');
 
     try {
+        // Init with credentials
         API.init(url, username, password);
+
+        // Test with health check
         const res = await API.get('/health');
 
         if (res.ok) {
             window.location.href = '/aria/dashboard';
         } else {
-            throw new Error('Connection failed');
+            throw new Error('Health check failed');
         }
     } catch (e) {
         API.clear();
         errorEl.classList.remove('hidden');
-        errorMsg.textContent = 'Cannot connect. Check URL and credentials.';
+
+        if (e.message.includes('401') ||
+            e.message.includes('Session expired') ||
+            e.message.includes('Unauthorized')) {
+            errorMsg.textContent =
+                'Wrong username or password. Please try again.';
+        } else if (e.message.includes('Network') ||
+                   e.message.includes('fetch')) {
+            errorMsg.textContent =
+                'Cannot reach server. Check the API URL.';
+        } else {
+            errorMsg.textContent =
+                'Login failed: ' + e.message;
+        }
+
         btn.disabled = false;
         btn.textContent = 'Connect to ARIA';
     }
 }
+
+// Enter key support
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') login();
+});
 </script>
 </body>
 </html>

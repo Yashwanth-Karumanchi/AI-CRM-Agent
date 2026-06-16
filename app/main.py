@@ -2,6 +2,9 @@ from fastapi import (
     FastAPI, Depends, UploadFile,
     File, HTTPException, Query
 )
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request as StarletteRequest
 from fastapi.responses import StreamingResponse
 import asyncio
 from app.services.importer import parse_excel, parse_csv
@@ -104,6 +107,22 @@ Production-ready AI CRM Agent with ARIA frontend.
 
 # ── Middleware ─────────────────────────────────────────
 
+class SuppressAuthPopupMiddleware(BaseHTTPMiddleware):
+    """
+    Prevents browser from showing native Basic Auth popup
+    by changing WWW-Authenticate header to use 'xBasic'
+    instead of 'Basic' for XHR requests.
+    """
+    async def dispatch(self, request: StarletteRequest, call_next):
+        response = await call_next(request)
+        if (response.status_code == 401 and
+                request.headers.get('X-Requested-With') ==
+                'XMLHttpRequest'):
+            response.headers['WWW-Authenticate'] = \
+                'xBasic realm="ARIA"'
+        return response
+
+app.add_middleware(SuppressAuthPopupMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
