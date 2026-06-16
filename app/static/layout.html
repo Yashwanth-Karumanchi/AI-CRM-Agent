@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARIA — {{PAGE_TITLE}}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/aria.css">
+</head>
+<body>
+<div class="app-layout">
+
+    <!-- Topbar -->
+    <div class="topbar">
+        <div class="topbar-brand">
+            <div class="topbar-logo">🤖</div>
+            <div>
+                <div class="topbar-title">ARIA</div>
+                <div class="topbar-subtitle">
+                    AI Relationship Intelligence
+                </div>
+            </div>
+        </div>
+        <div class="topbar-right">
+            <div class="status-dot" id="connectionStatus">
+                Connected
+            </div>
+            <button class="btn btn-secondary btn-sm"
+                onclick="logout()">
+                Sign Out
+            </button>
+        </div>
+    </div>
+
+    <div class="app-body">
+
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-label">Main</div>
+                    <a href="/aria/dashboard"
+                        class="nav-item" data-page="dashboard">
+                        <span class="nav-item-icon">📊</span>
+                        Dashboard
+                    </a>
+                    <a href="/aria/clients"
+                        class="nav-item" data-page="clients">
+                        <span class="nav-item-icon">👥</span>
+                        Clients
+                    </a>
+                    <a href="/aria/chat"
+                        class="nav-item" data-page="chat">
+                        <span class="nav-item-icon">💬</span>
+                        Chat with ARIA
+                    </a>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-label">Tools</div>
+                    <a href="/aria/calendar"
+                        class="nav-item" data-page="calendar">
+                        <span class="nav-item-icon">📅</span>
+                        Calendar
+                    </a>
+                    <a href="/aria/email"
+                        class="nav-item" data-page="email">
+                        <span class="nav-item-icon">📧</span>
+                        Email
+                    </a>
+                    <a href="/aria/reports"
+                        class="nav-item" data-page="reports">
+                        <span class="nav-item-icon">📄</span>
+                        Reports
+                    </a>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-label">Intelligence</div>
+                    <a href="/aria/intel"
+                        class="nav-item" data-page="intel">
+                        <span class="nav-item-icon">🧠</span>
+                        Intelligence
+                    </a>
+                    <a href="/aria/search"
+                        class="nav-item" data-page="search">
+                        <span class="nav-item-icon">🔍</span>
+                        Smart Search
+                    </a>
+                </div>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="sidebar-stats" id="sidebarStats">
+                    <div class="text-muted text-xs">
+                        Loading...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page Content -->
+        <div class="main-content" id="mainContent">
+            {{PAGE_CONTENT}}
+        </div>
+
+    </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Shared Scripts -->
+<script src="/static/js/api.js"></script>
+<script src="/static/js/utils.js"></script>
+<script src="/static/js/nav.js"></script>
+<script>
+function logout() {
+    API.clear();
+    window.location.href = '/aria/';
+}
+</script>
+{{PAGE_SCRIPTS}}
+</body>
+</html>

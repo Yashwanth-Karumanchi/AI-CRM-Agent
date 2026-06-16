@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARIA — Chat</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/aria.css">
+    <style>
+        .app-layout { height: 100vh; overflow: hidden; }
+        .chat-page {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 56px);
+            overflow: hidden;
+        }
+        .chat-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--bg-secondary);
+            flex-shrink: 0;
+        }
+    </style>
+</head>
+<body>
+<div class="app-layout">
+    <div class="topbar">
+        <div class="topbar-brand">
+            <div class="topbar-logo">🤖</div>
+            <div>
+                <div class="topbar-title">ARIA</div>
+                <div class="topbar-subtitle">AI Relationship Intelligence</div>
+            </div>
+        </div>
+        <div class="topbar-right">
+            <div class="status-dot">Connected</div>
+            <button class="btn btn-secondary btn-sm" onclick="logout()">Sign Out</button>
+        </div>
+    </div>
+
+    <div class="app-body">
+        <div class="sidebar">
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-label">Main</div>
+                    <a href="/aria/dashboard" class="nav-item" data-page="dashboard"><span class="nav-item-icon">📊</span>Dashboard</a>
+                    <a href="/aria/clients" class="nav-item" data-page="clients"><span class="nav-item-icon">👥</span>Clients</a>
+                    <a href="/aria/chat" class="nav-item active" data-page="chat"><span class="nav-item-icon">💬</span>Chat with ARIA</a>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-label">Tools</div>
+                    <a href="/aria/calendar" class="nav-item"><span class="nav-item-icon">📅</span>Calendar</a>
+                    <a href="/aria/email" class="nav-item"><span class="nav-item-icon">📧</span>Email</a>
+                    <a href="/aria/reports" class="nav-item"><span class="nav-item-icon">📄</span>Reports</a>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-label">Intelligence</div>
+                    <a href="/aria/intel" class="nav-item"><span class="nav-item-icon">🧠</span>Intelligence</a>
+                    <a href="/aria/search" class="nav-item"><span class="nav-item-icon">🔍</span>Smart Search</a>
+                </div>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="sidebar-stats" id="sidebarStats">
+                    <div class="text-muted text-xs">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content" style="overflow:hidden;display:flex;flex-direction:column">
+            <div class="chat-page">
+                <!-- Chat Header -->
+                <div class="chat-header">
+                    <div>
+                        <div class="font-semibold">Chat with ARIA</div>
+                        <div class="text-muted text-xs">
+                            Ask anything — ARIA can create clients,
+                            send emails, schedule meetings, and more
+                        </div>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" onclick="clearChat()">
+                        Clear Chat
+                    </button>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="chat-quick-actions" style="padding:12px 24px;border-bottom:1px solid var(--border);background:var(--bg-secondary)">
+                    <button class="quick-action-btn" onclick="quick('Show me all high priority clients')">🔴 High Priority</button>
+                    <button class="quick-action-btn" onclick="quick('Who needs follow up today?')">📅 Follow-ups</button>
+                    <button class="quick-action-btn" onclick="quick('Give me a pipeline summary')">📊 Pipeline</button>
+                    <button class="quick-action-btn" onclick="quick('Which clients are most likely to close?')">🎯 Likely to Close</button>
+                    <button class="quick-action-btn" onclick="quick('What should I focus on today?')">✅ Daily Focus</button>
+                    <button class="quick-action-btn" onclick="quick('Score all my high priority clients')">🏆 Score Pipeline</button>
+                </div>
+
+                <!-- Messages -->
+                <div class="chat-messages" id="chatMessages">
+                    <div class="chat-message">
+                        <div class="chat-avatar aria">🤖</div>
+                        <div class="chat-bubble aria">
+                            <p>Hello! I'm <strong>ARIA</strong>, your AI Relationship Intelligence Assistant.</p>
+                            <p style="margin-top:8px">I can help you manage clients, send emails, schedule meetings, score leads, generate reports, and much more — all from natural language.</p>
+                            <p style="margin-top:8px;color:var(--text-muted);font-size:12px">I'll always confirm before making any changes. Say <em>"undo"</em> to rollback any action.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input -->
+                <div class="chat-input-area">
+                    <div class="chat-input-row">
+                        <textarea
+                            id="chatInput"
+                            class="chat-textarea"
+                            placeholder="Ask ARIA anything... (Enter to send, Shift+Enter for new line)"
+                            onkeydown="handleKey(event)"
+                            rows="1"></textarea>
+                        <button class="btn btn-primary" onclick="send()" id="sendBtn">
+                            Send →
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="/static/js/api.js"></script>
+<script src="/static/js/utils.js"></script>
+<script src="/static/js/nav.js"></script>
+<script>
+function logout() { API.clear(); window.location.href = '/aria/'; }
+
+Nav.init();
+
+// ── State ──────────────────────────────────────────────
+let chatHistory = [];
+let sessionContext = {
+    lastClientId: null,
+    lastClientName: null,
+    lastAction: null,
+    pendingAction: null,
+    lastCompletedAction: null
+};
+
+// ── Send ───────────────────────────────────────────────
+function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        send();
+    }
+}
+
+function quick(msg) {
+    document.getElementById('chatInput').value = msg;
+    send();
+}
+
+async function send() {
+    const input = document.getElementById('chatInput');
+    const message = input.value.trim();
+    if (!message) return;
+
+    input.value = '';
+    input.style.height = 'auto';
+
+    chatHistory.push({ role: 'user', content: message });
+    addMessage('user', message);
+
+    const thinkingId = addThinking();
+
+    try {
+        updateThinking(thinkingId, '🧠 Analyzing your message...');
+        await sleep(400);
+        updateThinking(thinkingId, '🔍 Checking CRM data...');
+        await sleep(300);
+        updateThinking(thinkingId, '⚡ Processing...');
+
+        const res = await API.post('/aria/chat', {
+            message,
+            history: chatHistory.slice(0, -1),
+            session_context: sessionContext
+        });
+
+        if (res.action_executed) {
+            updateThinking(thinkingId, '✅ ' + res.action_executed.substring(0, 60));
+            await sleep(600);
+        } else if (res.needs_confirmation) {
+            updateThinking(thinkingId, '🤔 Preparing confirmation...');
+            await sleep(300);
+        } else {
+            updateThinking(thinkingId, '💬 Composing response...');
+            await sleep(200);
+        }
+
+        removeThinking(thinkingId);
+
+        if (res.context) Object.assign(sessionContext, res.context);
+        const reply = res.response || 'Sorry, I could not process that.';
+        chatHistory.push({ role: 'assistant', content: reply });
+
+        if (res.needs_confirmation) {
+            addConfirmMessage(reply);
+        } else {
+            addMessage('aria', reply);
+        }
+
+        if (res.action_executed) {
+            Toast.success(res.action_executed.replace('✅ ', ''));
+        }
+
+    } catch (e) {
+        removeThinking(thinkingId);
+        chatHistory.pop();
+        const errMsg = e.message.includes('Rate limit') ?
+            '⏱️ Rate limit reached. Please wait 30 seconds and try again.' :
+            '❌ Connection error: ' + e.message;
+        addMessage('aria', errMsg);
+        Toast.error(e.message);
+    }
+}
+
+// ── Message Rendering ──────────────────────────────────
+function addMessage(role, text) {
+    const container = document.getElementById('chatMessages');
+    const isUser = role === 'user';
+    const div = document.createElement('div');
+    div.className = `chat-message ${isUser ? 'user' : ''}`;
+    div.innerHTML = `
+        <div class="chat-avatar ${isUser ? 'user' : 'aria'}">
+            ${isUser ? '👤' : '🤖'}
+        </div>
+        <div class="chat-bubble ${isUser ? 'user' : 'aria'}">
+            <div style="white-space:pre-wrap;line-height:1.6">
+                ${escapeHtml(text)}
+            </div>
+        </div>
+    `;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+function addConfirmMessage(text) {
+    const container = document.getElementById('chatMessages');
+    const div = document.createElement('div');
+    div.className = 'chat-message';
+    div.innerHTML = `
+        <div class="chat-avatar aria">🤖</div>
+        <div>
+            <div class="chat-bubble aria">
+                <div style="white-space:pre-wrap;line-height:1.6">
+                    ${escapeHtml(text)}
+                </div>
+            </div>
+            <div class="chat-confirm-buttons">
+                <button class="btn btn-success btn-sm" onclick="confirm_action(this)">
+                    ✅ Yes, go ahead
+                </button>
+                <button class="btn btn-danger btn-sm" onclick="cancel_action(this)">
+                    ❌ Cancel
+                </button>
+            </div>
+        </div>
+    `;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+function confirm_action(btn) {
+    btn.closest('.chat-confirm-buttons')?.remove();
+    document.getElementById('chatInput').value = 'Yes, go ahead';
+    send();
+}
+
+function cancel_action(btn) {
+    btn.closest('.chat-confirm-buttons')?.remove();
+    document.getElementById('chatInput').value = 'Cancel';
+    send();
+}
+
+// ── Thinking ───────────────────────────────────────────
+function addThinking() {
+    const id = 'think-' + Date.now();
+    const container = document.getElementById('chatMessages');
+    const div = document.createElement('div');
+    div.id = id;
+    div.className = 'chat-message';
+    div.innerHTML = `
+        <div class="chat-avatar aria">🤖</div>
+        <div class="chat-bubble aria">
+            <div class="flex items-center gap-2">
+                <div class="flex gap-2">
+                    <div class="thinking-dot"></div>
+                    <div class="thinking-dot"></div>
+                    <div class="thinking-dot"></div>
+                </div>
+                <span id="${id}-text" class="text-muted text-xs"
+                    style="transition:opacity 0.3s">
+                    🧠 Thinking...
+                </span>
+            </div>
+        </div>
+    `;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+    return id;
+}
+
+function updateThinking(id, msg) {
+    const el = document.getElementById(id + '-text');
+    if (el) {
+        el.style.opacity = '0';
+        setTimeout(() => {
+            el.textContent = msg;
+            el.style.opacity = '1';
+        }, 150);
+    }
+}
+
+function removeThinking(id) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.style.transition = 'opacity 0.2s';
+        el.style.opacity = '0';
+        setTimeout(() => el.remove(), 200);
+    }
+}
+
+function clearChat() {
+    chatHistory = [];
+    sessionContext = {
+        lastClientId: null,
+        lastClientName: null,
+        lastAction: null,
+        pendingAction: null,
+        lastCompletedAction: null
+    };
+    document.getElementById('chatMessages').innerHTML = `
+        <div class="chat-message">
+            <div class="chat-avatar aria">🤖</div>
+            <div class="chat-bubble aria">
+                Chat cleared. How can I help you?
+            </div>
+        </div>
+    `;
+}
+
+// Auto-resize textarea
+document.getElementById('chatInput').addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+});
+</script>
+</body>
+</html>

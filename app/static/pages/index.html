@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARIA — Login</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/aria.css">
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: var(--bg-primary);
+        }
+
+        .login-bg {
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(
+                ellipse at 50% 50%,
+                rgba(201,169,110,0.04) 0%,
+                transparent 70%
+            );
+            pointer-events: none;
+        }
+
+        .login-card {
+            width: 420px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg), var(--glow);
+            padding: 40px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .login-logo {
+            width: 56px;
+            height: 56px;
+            background: var(--accent-muted);
+            border: 1px solid var(--accent-border);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            margin: 0 auto 20px;
+        }
+
+        .login-title {
+            text-align: center;
+            font-size: 26px;
+            font-weight: 700;
+            color: var(--accent-primary);
+            letter-spacing: 0.1em;
+            margin-bottom: 4px;
+        }
+
+        .login-subtitle {
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 32px;
+        }
+
+        .login-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 24px 0;
+        }
+
+        .login-divider::before,
+        .login-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .login-divider span {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .login-footer {
+            margin-top: 24px;
+            text-align: center;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+<div class="login-bg"></div>
+
+<div class="login-card">
+    <div class="login-logo">🤖</div>
+    <div class="login-title">ARIA</div>
+    <div class="login-subtitle">
+        AI Relationship Intelligence Assistant
+    </div>
+
+    <div class="input-group">
+        <label class="input-label">API URL</label>
+        <input id="loginUrl" type="text"
+            class="input"
+            placeholder="https://ai-crm-agent-ol9e.onrender.com"
+            value="https://ai-crm-agent-ol9e.onrender.com">
+    </div>
+
+    <div class="input-group">
+        <label class="input-label">Username</label>
+        <input id="loginUsername" type="text"
+            class="input" placeholder="admin">
+    </div>
+
+    <div class="input-group">
+        <label class="input-label">Password</label>
+        <input id="loginPassword" type="password"
+            class="input" placeholder="••••••••"
+            onkeydown="if(event.key==='Enter') login()">
+    </div>
+
+    <div id="loginError" class="alert alert-error hidden">
+        <span>⚠️</span>
+        <span id="loginErrorMsg"></span>
+    </div>
+
+    <button onclick="login()" id="loginBtn"
+        class="btn btn-primary w-full btn-lg mt-3">
+        Connect to ARIA
+    </button>
+
+    <div class="login-footer">
+        Secure connection · All data encrypted in transit
+    </div>
+</div>
+
+<script src="/static/js/api.js"></script>
+<script>
+// Auto-redirect if already logged in
+if (API.loadFromStorage()) {
+    window.location.href = '/aria/dashboard';
+}
+
+async function login() {
+    const url = document.getElementById('loginUrl').value.trim();
+    const username = document.getElementById('loginUsername').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const btn = document.getElementById('loginBtn');
+    const errorEl = document.getElementById('loginError');
+    const errorMsg = document.getElementById('loginErrorMsg');
+
+    if (!url || !username || !password) {
+        errorEl.classList.remove('hidden');
+        errorMsg.textContent = 'Please fill in all fields';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<div class="loading-spinner" style="width:16px;height:16px;border-width:2px;margin:0 auto"></div>';
+    errorEl.classList.add('hidden');
+
+    try {
+        API.init(url, username, password);
+        const res = await API.get('/health');
+
+        if (res.ok) {
+            window.location.href = '/aria/dashboard';
+        } else {
+            throw new Error('Connection failed');
+        }
+    } catch (e) {
+        API.clear();
+        errorEl.classList.remove('hidden');
+        errorMsg.textContent = 'Cannot connect. Check URL and credentials.';
+        btn.disabled = false;
+        btn.textContent = 'Connect to ARIA';
+    }
+}
+</script>
+</body>
+</html>

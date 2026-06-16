@@ -2,11 +2,30 @@ from fastapi import (
     FastAPI, Depends, UploadFile,
     File, HTTPException, Query
 )
-
-import json
-
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
+from fastapi.middleware.cors import CORSMiddleware
+from typing import Optional, List
+import json
+import re
+
+from app.auth import verify_credentials
+from app.config import get_settings
+from app.logger import get_logger
+from app.services import sheets
+from app.services.llm import generate, generate_json
+
+from app.models import (
+    ClientCreate, ClientUpdate, StageUpdate,
+    EmailDraft, EmailSend, AgentChat,
+    AgentDraftEmail, BulkStageUpdate,
+    BulkArchive, FollowUpUpdate, DeleteDraftInput,
+    NLSearchInput, SmartFilterInput,
+    ScheduleMeetingInput, UpdateMeetingInput,
+    MeetingNotesInput, GenerateContractInput,
+    GenerateInvoiceInput, GenerateProposalInput,
+    TimelineItem, LineItem, PricingTier
+)
 
 from app.agent import (
     extract_client_from_pdf,
@@ -23,16 +42,15 @@ from app.agent import (
     forecast_revenue,
     analyze_win_loss
 )
-from app.models import (
-    NLSearchInput,
-    SmartFilterInput
-)
 
-from app.services.reports import (
-    generate_weekly_report,
-    generate_monthly_report,
-    generate_client_acquisition_report,
-    generate_agent_activity_report
+from app.services.document import (
+    generate_client_report,
+    generate_pipeline_report
+)
+from app.services.pdf import extract_pdf_text
+from app.services.gmail import (
+    send_email, create_draft,
+    delete_draft, list_drafts
 )
 from app.services.calendar import (
     schedule_meeting,
@@ -43,95 +61,45 @@ from app.services.calendar import (
     add_meeting_notes,
     get_client_meetings
 )
-from app.models import (
-    ScheduleMeetingInput,
-    UpdateMeetingInput,
-    MeetingNotesInput
-)
-from fastapi.responses import Response
-from fastapi.middleware.cors import CORSMiddleware
-from typing import Optional, List
-import json
-
-from app.auth import verify_credentials
-from app.models import (
-    ClientCreate, ClientUpdate, StageUpdate,
-    EmailDraft, EmailSend, AgentChat,
-    AgentDraftEmail, BulkStageUpdate,
-    BulkArchive, FollowUpUpdate, DeleteDraftInput
-)
-from app.config import get_settings
-from app.logger import get_logger
-from app.services import sheets
-from app.services.document import (
-    generate_client_report,
-    generate_pipeline_report
-)
-from app.services.pdf import extract_pdf_text
-from app.services.gmail import (
-    send_email, create_draft,
-    delete_draft, list_drafts
-)
-from app.agent import (
-    extract_client_from_pdf,
-    analyze_client,
-    draft_email,
-    chat
-)
-
-from app.agent import (
-    extract_client_from_pdf,
-    analyze_client,
-    draft_email,
-    chat,
-    score_single_client,
-    score_entire_pipeline,
-    find_similar_clients,
-    get_daily_recommendations
-)
-
 from app.services.contracts import (
     generate_contract,
     generate_invoice,
     generate_proposal
 )
-from app.models import (
-    GenerateContractInput,
-    GenerateInvoiceInput,
-    GenerateProposalInput,
-    TimelineItem,
-    LineItem,
-    PricingTier
+from app.services.reports import (
+    generate_weekly_report,
+    generate_monthly_report,
+    generate_client_acquisition_report,
+    generate_agent_activity_report
 )
 
 logger = get_logger(__name__)
 
+# ── App ────────────────────────────────────────────────
+
 app = FastAPI(
     title="AI CRM Agent",
     description="""
-    Production-ready AI CRM Agent.
+Production-ready AI CRM Agent with ARIA frontend.
 
-    ## Features
-    - Full client CRUD with audit trail
-    - Field-level rollback and undo
-    - PDF extraction with AI
-    - Word report generation
-    - Gmail send and draft management
-    - AI chat and client analysis
-    - Pipeline management
-    - Bulk operations
-    - Follow-up tracking
+## Features
+- Full client CRUD with audit trail and rollback
+- PDF extraction with AI
+- Word document generation (reports, contracts, invoices, proposals)
+- Gmail send and draft management
+- Google Calendar integration
+- AI chat (ARIA) with action execution
+- Pipeline intelligence and scoring
+- Natural language search
+- Revenue forecasting
+- Win/loss analysis
     """,
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
 
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
-
-@app.get("/aria", tags=["ARIA"])
-async def serve_aria():
-    return FileResponse("app/static/aria.html")
+# ── Middleware ─────────────────────────────────────────
 
 app.add_middleware(
     CORSMiddleware,
@@ -141,7 +109,15 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-# ─── Startup ───────────────────────────────────────────
+# ── Static Files ───────────────────────────────────────
+
+app.mount(
+    "/static",
+    StaticFiles(directory="app/static"),
+    name="static"
+)
+
+# ── Startup ────────────────────────────────────────────
 
 @app.on_event("startup")
 async def startup():
@@ -151,8 +127,48 @@ async def startup():
         logger.info("Google Sheets initialized")
     except Exception as e:
         logger.error(f"Sheets setup failed: {e}")
+        logger.info("Continuing despite sheets error")
 
-# ─── System ────────────────────────────────────────────
+# ── ARIA Pages ─────────────────────────────────────────
+
+@app.get("/aria", tags=["ARIA"])
+@app.get("/aria/", tags=["ARIA"])
+async def aria_index():
+    return FileResponse("app/static/pages/index.html")
+
+@app.get("/aria/dashboard", tags=["ARIA"])
+async def aria_dashboard():
+    return FileResponse("app/static/pages/dashboard.html")
+
+@app.get("/aria/clients", tags=["ARIA"])
+async def aria_clients_page():
+    return FileResponse("app/static/pages/clients.html")
+
+@app.get("/aria/chat", tags=["ARIA"])
+async def aria_chat_page():
+    return FileResponse("app/static/pages/chat.html")
+
+@app.get("/aria/calendar", tags=["ARIA"])
+async def aria_calendar_page():
+    return FileResponse("app/static/pages/calendar.html")
+
+@app.get("/aria/email", tags=["ARIA"])
+async def aria_email_page():
+    return FileResponse("app/static/pages/email.html")
+
+@app.get("/aria/reports", tags=["ARIA"])
+async def aria_reports_page():
+    return FileResponse("app/static/pages/reports.html")
+
+@app.get("/aria/intel", tags=["ARIA"])
+async def aria_intel_page():
+    return FileResponse("app/static/pages/intel.html")
+
+@app.get("/aria/search", tags=["ARIA"])
+async def aria_search_page():
+    return FileResponse("app/static/pages/search.html")
+
+# ── System ─────────────────────────────────────────────
 
 @app.get("/health", tags=["System"])
 async def health():
@@ -173,7 +189,7 @@ async def debug_gmail():
         "has_refresh_token": "refresh_token" in (token_env or "")
     }
 
-# ─── Clients: CRUD ─────────────────────────────────────
+# ── Clients: CRUD ──────────────────────────────────────
 
 @app.post("/clients", tags=["Clients"])
 async def create_client(
@@ -183,9 +199,21 @@ async def create_client(
     """Create a new client"""
     try:
         client = await sheets.create_client(data.model_dump())
-        return {"ok": True, "message": "Client created", "client": client}
+        return {
+            "ok": True,
+            "message": "Client created",
+            "client": client
+        }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/clients/archived", tags=["Clients"])
+async def get_archived_clients(
+    username: str = Depends(verify_credentials)
+):
+    """Get all archived clients"""
+    clients = await sheets.get_archived_clients()
+    return {"ok": True, "count": len(clients), "clients": clients}
 
 @app.get("/clients", tags=["Clients"])
 async def list_clients(
@@ -204,14 +232,6 @@ async def list_clients(
         client_id=client_id, email=email,
         include_archived=include_archived, limit=limit
     )
-    return {"ok": True, "count": len(clients), "clients": clients}
-
-@app.get("/clients/archived", tags=["Clients"])
-async def get_archived_clients(
-    username: str = Depends(verify_credentials)
-):
-    """Get all archived clients"""
-    clients = await sheets.get_archived_clients()
     return {"ok": True, "count": len(clients), "clients": clients}
 
 @app.get("/clients/{client_id}", tags=["Clients"])
@@ -279,7 +299,7 @@ async def archive_client(
     client_id: str,
     username: str = Depends(verify_credentials)
 ):
-    """Soft delete - archive a client"""
+    """Soft delete — archive a client"""
     try:
         result = await sheets.archive_client(client_id)
         return {"ok": True, "message": "Client archived", **result}
@@ -314,7 +334,7 @@ async def delete_permanently(
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-# ─── Clients: Bulk ─────────────────────────────────────
+# ── Clients: Bulk ──────────────────────────────────────
 
 @app.post("/clients/bulk/stage", tags=["Bulk Operations"])
 async def bulk_update_stage(
@@ -336,7 +356,7 @@ async def bulk_archive(
     result = await sheets.bulk_archive(data.client_ids)
     return {"ok": True, **result}
 
-# ─── Audit & Rollback ──────────────────────────────────
+# ── Audit & Rollback ───────────────────────────────────
 
 @app.get("/clients/{client_id}/audit", tags=["Audit"])
 async def get_audit_history(
@@ -364,11 +384,18 @@ async def rollback_last_change(
     """Undo the last change made to a client"""
     try:
         result = await sheets.rollback_last_change(client_id)
-        return {"ok": True, "message": "Last change rolled back", **result}
+        return {
+            "ok": True,
+            "message": "Last change rolled back",
+            **result
+        }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.post("/clients/{client_id}/rollback/{field}", tags=["Audit"])
+@app.post(
+    "/clients/{client_id}/rollback/{field}",
+    tags=["Audit"]
+)
 async def rollback_field(
     client_id: str,
     field: str,
@@ -376,12 +403,18 @@ async def rollback_field(
 ):
     """Rollback a specific field to its previous value"""
     try:
-        result = await sheets.rollback_client_field(client_id, field)
-        return {"ok": True, "message": f"Field '{field}' rolled back", **result}
+        result = await sheets.rollback_client_field(
+            client_id, field
+        )
+        return {
+            "ok": True,
+            "message": f"Field '{field}' rolled back",
+            **result
+        }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-# ─── Activity ──────────────────────────────────────────
+# ── Activities ─────────────────────────────────────────
 
 @app.get("/clients/{client_id}/activity", tags=["Activities"])
 async def get_client_activity(
@@ -414,9 +447,13 @@ async def search_activities(
         client_id=client_id,
         limit=limit
     )
-    return {"ok": True, "count": len(activities), "activities": activities}
+    return {
+        "ok": True,
+        "count": len(activities),
+        "activities": activities
+    }
 
-# ─── Pipeline ──────────────────────────────────────────
+# ── Pipeline ───────────────────────────────────────────
 
 @app.get("/pipeline", tags=["Pipeline"])
 async def get_pipeline(
@@ -434,7 +471,6 @@ async def pipeline_report(
     summary = await sheets.get_pipeline_summary()
     clients = await sheets.get_all_clients(limit=1000)
     report_bytes = generate_pipeline_report(summary, clients)
-
     return Response(
         content=report_bytes,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -451,33 +487,28 @@ async def followups_due(
     clients = await sheets.get_followups_due()
     return {"ok": True, "count": len(clients), "clients": clients}
 
-# ─── Documents ─────────────────────────────────────────
+# ── Documents ──────────────────────────────────────────
 
 @app.post("/process-pdf", tags=["Documents"])
 async def process_pdf(
     file: UploadFile = File(...),
     username: str = Depends(verify_credentials)
 ):
-    """Upload PDF, extract client data with AI, create client record"""
+    """Upload PDF, extract client data with AI, create client"""
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(400, "File must be a PDF")
-
     try:
         file_bytes = await file.read()
         pdf_data = extract_pdf_text(file_bytes)
-
         if not pdf_data["raw_text"].strip():
             raise HTTPException(400, "Could not extract text from PDF")
-
         extracted = await extract_client_from_pdf(pdf_data["raw_text"])
         client = await sheets.create_client(extracted)
-
         await sheets.log_activity(
             client["client_id"], "PDF_PROCESSED",
             f"Created client from PDF: {file.filename}",
             "SUCCESS", ""
         )
-
         return {
             "ok": True,
             "message": "PDF processed and client created",
@@ -504,13 +535,11 @@ async def generate_report(
         client = await sheets.require_client(client_id)
         analysis = await analyze_client(client)
         report_bytes = generate_client_report(client, analysis)
-
         await sheets.log_activity(
             client_id, "REPORT_GENERATED",
             f"Generated report for {client['name']}",
             "SUCCESS", ""
         )
-
         return Response(
             content=report_bytes,
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -524,7 +553,7 @@ async def generate_report(
         logger.error(f"Report failed: {e}")
         raise HTTPException(500, str(e))
 
-# ─── Email ─────────────────────────────────────────────
+# ── Email ──────────────────────────────────────────────
 
 @app.post("/email/draft", tags=["Email"])
 async def create_email_draft(
@@ -536,26 +565,26 @@ async def create_email_draft(
         settings = get_settings()
         client = await sheets.require_client(data.client_id)
         recipient = str(data.to) if data.to else client.get("email")
-
         if not recipient:
             raise HTTPException(400, "No recipient email")
-
         result = await create_draft(
             to=recipient,
             subject=data.subject,
             body=data.body,
             from_email=settings.gmail_address
         )
-
         await sheets.log_activity(
             data.client_id, "EMAIL_DRAFT_CREATED",
             f"Draft for {recipient}: {data.subject}",
             "SUCCESS", result.get("gmail_drafts_url", "")
         )
-
         return {"ok": True, "message": "Draft created", **result}
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(400, str(e))
+    except Exception as e:
+        raise HTTPException(500, str(e))
 
 @app.post("/email/send", tags=["Email"])
 async def send_email_endpoint(
@@ -567,26 +596,26 @@ async def send_email_endpoint(
         settings = get_settings()
         client = await sheets.require_client(data.client_id)
         recipient = str(data.to) if data.to else client.get("email")
-
         if not recipient:
             raise HTTPException(400, "No recipient email")
-
         result = await send_email(
             to=recipient,
             subject=data.subject,
             body=data.body,
             from_email=settings.gmail_address
         )
-
         await sheets.log_activity(
             data.client_id, "EMAIL_SENT",
             f"Sent to {recipient}: {data.subject}",
             "SUCCESS", ""
         )
-
         return {"ok": True, "message": "Email sent", **result}
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(400, str(e))
+    except Exception as e:
+        raise HTTPException(500, str(e))
 
 @app.delete("/email/draft/{draft_id}", tags=["Email"])
 async def delete_email_draft(
@@ -612,7 +641,7 @@ async def get_email_drafts(
     except Exception as e:
         raise HTTPException(400, str(e))
 
-# ─── AI Agent ──────────────────────────────────────────
+# ── AI Agent ───────────────────────────────────────────
 
 @app.post("/agent/chat", tags=["Agent"])
 async def agent_chat(
@@ -623,7 +652,11 @@ async def agent_chat(
     try:
         response = await chat(data.message, data.client_id)
         await sheets.log_agent("CHAT", data.message, response)
-        return {"ok": True, "message": data.message, "response": response}
+        return {
+            "ok": True,
+            "message": data.message,
+            "response": response
+        }
     except Exception as e:
         raise HTTPException(500, str(e))
 
@@ -660,11 +693,9 @@ async def agent_draft_email(
         settings = get_settings()
         client = await sheets.require_client(data.client_id)
         drafted = await draft_email(client, data.instruction)
-
         recipient = client.get("email")
         if not recipient:
             raise HTTPException(400, "Client has no email")
-
         if data.send:
             result = await send_email(
                 to=recipient,
@@ -703,12 +734,14 @@ async def agent_draft_email(
                 "body": drafted["body"],
                 **result
             }
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(400, str(e))
     except Exception as e:
         raise HTTPException(500, str(e))
 
-# ─── Calendar ──────────────────────────────────────────
+# ── Calendar ───────────────────────────────────────────
 
 @app.post("/meetings", tags=["Calendar"])
 async def create_meeting(
@@ -718,7 +751,6 @@ async def create_meeting(
     """Schedule a meeting with a client"""
     try:
         client = await sheets.require_client(data.client_id)
-
         result = await schedule_meeting(
             client=client,
             title=data.title,
@@ -729,20 +761,14 @@ async def create_meeting(
             invite_client=data.invite_client,
             meeting_notes=data.meeting_notes
         )
-
         await sheets.log_activity(
-            data.client_id,
-            "MEETING_SCHEDULED",
+            data.client_id, "MEETING_SCHEDULED",
             f"Meeting: {result['title']} at {result['start_time']}",
-            "SUCCESS",
-            result.get("calendar_link", "")
+            "SUCCESS", result.get("calendar_link", "")
         )
-
         await sheets.update_next_followup(
-            data.client_id,
-            data.start_time[:10]
+            data.client_id, data.start_time[:10]
         )
-
         return {
             "ok": True,
             "message": "Meeting scheduled",
@@ -767,11 +793,7 @@ async def upcoming_meetings(
             days_ahead=days_ahead,
             max_results=max_results
         )
-        return {
-            "ok": True,
-            "count": len(meetings),
-            "meetings": meetings
-        }
+        return {"ok": True, "count": len(meetings), "meetings": meetings}
     except Exception as e:
         raise HTTPException(500, str(e))
 
@@ -851,20 +873,16 @@ async def get_meetings_for_client(
     """Get all meetings involving a specific client"""
     try:
         client = await sheets.require_client(client_id)
-
         if not client.get("email"):
             raise HTTPException(
                 400,
-                "Client has no email — "
-                "cannot search calendar meetings"
+                "Client has no email — cannot search calendar"
             )
-
         meetings = await get_client_meetings(
             client_email=client["email"],
             days_back=days_back,
             days_ahead=days_ahead
         )
-
         return {
             "ok": True,
             "client_id": client_id,
@@ -876,37 +894,24 @@ async def get_meetings_for_client(
     except Exception as e:
         raise HTTPException(500, str(e))
 
-# ─── Lead Scoring & Recommendations ───────────────────
+# ── Intelligence ───────────────────────────────────────
 
 @app.get("/clients/{client_id}/score", tags=["Intelligence"])
 async def score_client_endpoint(
     client_id: str,
     username: str = Depends(verify_credentials)
 ):
-    """
-    AI scores a client on lead quality, churn risk,
-    sentiment, opportunity value and recommends actions
-    """
+    """AI scores a client on multiple dimensions"""
     try:
         client = await sheets.require_client(client_id)
         score = await score_single_client(client)
-
         await sheets.log_activity(
-            client_id,
-            "CLIENT_SCORED",
-            f"Lead score: {score.get('lead_score')}/10 | "
-            f"Churn risk: {score.get('churn_risk')} | "
-            f"Close probability: {score.get('estimated_close_probability')}%",
-            "SUCCESS",
-            ""
+            client_id, "CLIENT_SCORED",
+            f"Score: {score.get('lead_score')}/10 | "
+            f"Churn: {score.get('churn_risk')} | "
+            f"Close: {score.get('estimated_close_probability')}%",
+            "SUCCESS", ""
         )
-
-        await sheets.log_agent(
-            "LEAD_SCORING",
-            client_id,
-            str(score)
-        )
-
         return {
             "ok": True,
             "client_id": client_id,
@@ -923,24 +928,12 @@ async def score_client_endpoint(
 async def score_pipeline_endpoint(
     username: str = Depends(verify_credentials)
 ):
-    """
-    AI analyzes entire pipeline health,
-    identifies at-risk clients and stalled deals
-    """
+    """AI analyzes entire pipeline health"""
     try:
         clients = await sheets.get_all_clients(limit=1000)
-
         if not clients:
             raise HTTPException(400, "No clients in pipeline")
-
         analysis = await score_entire_pipeline(clients)
-
-        await sheets.log_agent(
-            "PIPELINE_SCORING",
-            f"Scored {len(clients)} clients",
-            str(analysis)
-        )
-
         return {
             "ok": True,
             "total_clients_analyzed": len(clients),
@@ -959,9 +952,7 @@ async def find_similar_clients_endpoint(
     try:
         target = await sheets.require_client(client_id)
         all_clients = await sheets.get_all_clients(limit=1000)
-
         result = await find_similar_clients(target, all_clients)
-
         return {
             "ok": True,
             "client_id": client_id,
@@ -977,24 +968,12 @@ async def find_similar_clients_endpoint(
 async def daily_recommendations(
     username: str = Depends(verify_credentials)
 ):
-    """
-    AI recommends which clients to follow up with today
-    and suggests a daily action plan
-    """
+    """AI recommends who to follow up with today"""
     try:
         clients = await sheets.get_all_clients(limit=1000)
-
         if not clients:
             raise HTTPException(400, "No clients found")
-
         recommendations = await get_daily_recommendations(clients)
-
-        await sheets.log_agent(
-            "DAILY_RECOMMENDATIONS",
-            f"Generated for {len(clients)} clients",
-            str(recommendations)
-        )
-
         return {
             "ok": True,
             "total_clients": len(clients),
@@ -1009,34 +988,24 @@ async def stale_clients(
     days_inactive: int = Query(14, ge=1, le=365),
     username: str = Depends(verify_credentials)
 ):
-    """
-    Find clients with no activity for X days
-    """
+    """Find clients with no activity for X days"""
     try:
         from datetime import datetime, timedelta
-
-        all_activities = await sheets.search_activities(
-            limit=1000
-        )
-
+        all_activities = await sheets.search_activities(limit=1000)
         cutoff = (
             datetime.utcnow() - timedelta(days=days_inactive)
         ).isoformat()
-
-        active_client_ids = set(
+        active_ids = set(
             a["client_id"]
             for a in all_activities
             if a.get("timestamp", "") >= cutoff
         )
-
         all_clients = await sheets.get_all_clients(limit=1000)
-
         stale = [
             c for c in all_clients
-            if c["client_id"] not in active_client_ids
+            if c["client_id"] not in active_ids
             and c.get("stage") not in ["Won", "Lost"]
         ]
-
         return {
             "ok": True,
             "days_inactive": days_inactive,
@@ -1046,405 +1015,16 @@ async def stale_clients(
     except Exception as e:
         raise HTTPException(500, str(e))
 
-# ─── Contracts, Invoices, Proposals ───────────────────
-
-@app.post("/clients/{client_id}/contract", tags=["Documents"])
-async def create_contract(
-    client_id: str,
-    data: GenerateContractInput,
-    username: str = Depends(verify_credentials)
-):
-    """Generate a professional service contract"""
-    try:
-        client = await sheets.require_client(client_id)
-
-        import uuid
-        contract_data = data.model_dump()
-        contract_data["contract_number"] = (
-            "CON-" + str(uuid.uuid4())[:8].upper()
-        )
-
-        contract_bytes = generate_contract(client, contract_data)
-
-        await sheets.log_activity(
-            client_id,
-            "CONTRACT_GENERATED",
-            f"Contract generated for {client['name']}",
-            "SUCCESS",
-            ""
-        )
-
-        filename = f"contract_{client_id}.docx"
-
-        return Response(
-            content=contract_bytes,
-            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            headers={
-                "Content-Disposition": f"attachment; filename={filename}"
-            }
-        )
-    except ValueError as e:
-        raise HTTPException(404, str(e))
-    except Exception as e:
-        logger.error(f"Contract generation failed: {e}")
-        raise HTTPException(500, str(e))
-
-@app.post("/clients/{client_id}/invoice", tags=["Documents"])
-async def create_invoice(
-    client_id: str,
-    data: GenerateInvoiceInput,
-    username: str = Depends(verify_credentials)
-):
-    """Generate a professional invoice"""
-    try:
-        client = await sheets.require_client(client_id)
-
-        invoice_data = data.model_dump()
-        invoice_data["line_items"] = [
-            item if isinstance(item, dict)
-            else item.model_dump()
-            for item in data.line_items
-        ]
-
-        invoice_bytes = generate_invoice(client, invoice_data)
-
-        await sheets.log_activity(
-            client_id,
-            "INVOICE_GENERATED",
-            f"Invoice generated for {client['name']}",
-            "SUCCESS",
-            ""
-        )
-
-        filename = f"invoice_{client_id}.docx"
-
-        return Response(
-            content=invoice_bytes,
-            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            headers={
-                "Content-Disposition": f"attachment; filename={filename}"
-            }
-        )
-    except ValueError as e:
-        raise HTTPException(404, str(e))
-    except Exception as e:
-        logger.error(f"Invoice generation failed: {e}")
-        raise HTTPException(500, str(e))
-
-@app.post("/clients/{client_id}/proposal", tags=["Documents"])
-async def create_proposal(
-    client_id: str,
-    data: GenerateProposalInput,
-    username: str = Depends(verify_credentials)
-):
-    """Generate a professional business proposal"""
-    try:
-        client = await sheets.require_client(client_id)
-        proposal_data = data.model_dump()
-        proposal_bytes = generate_proposal(client, proposal_data)
-
-        await sheets.log_activity(
-            client_id,
-            "PROPOSAL_GENERATED",
-            f"Proposal generated for {client['name']}",
-            "SUCCESS",
-            ""
-        )
-
-        await sheets.update_stage(
-            client_id,
-            "Proposal Sent",
-            changed_by=username
-        )
-
-        filename = f"proposal_{client_id}.docx"
-
-        return Response(
-            content=proposal_bytes,
-            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            headers={
-                "Content-Disposition": f"attachment; filename={filename}"
-            }
-        )
-    except ValueError as e:
-        raise HTTPException(404, str(e))
-    except Exception as e:
-        logger.error(f"Proposal generation failed: {e}")
-        raise HTTPException(500, str(e))
-
-@app.post("/clients/{client_id}/ai-proposal", tags=["Documents"])
-async def ai_generate_proposal(
-    client_id: str,
-    provider_name: str,
-    provider_email: Optional[str] = None,
-    username: str = Depends(verify_credentials)
-):
-    """
-    AI automatically generates a complete proposal
-    based on client data — no manual input needed
-    """
-    try:
-        client = await sheets.require_client(client_id)
-        analysis = await analyze_client(client)
-
-        proposal_data = {
-            "provider_name": provider_name,
-            "provider_email": provider_email,
-            "executive_summary": analysis.get(
-                "executive_summary", ""
-            ),
-            "problem_statement": analysis.get(
-                "business_problem", ""
-            ),
-            "proposed_solution": (
-                f"We propose to address your "
-                f"{client.get('service', 'needs')} through "
-                f"our proven methodology and expertise."
-            ),
-            "scope_items": analysis.get(
-                "recommendations", []
-            ),
-            "next_steps": [
-                "Review this proposal",
-                "Schedule a discovery call",
-                "Sign the service agreement",
-                "Begin project kickoff"
-            ],
-            "why_us": [
-                "Proven track record",
-                "Dedicated support team",
-                "Transparent pricing",
-                "On-time delivery guarantee"
-            ]
-        }
-
-        proposal_bytes = generate_proposal(
-            client, proposal_data
-        )
-
-        await sheets.log_activity(
-            client_id,
-            "AI_PROPOSAL_GENERATED",
-            f"AI generated proposal for {client['name']}",
-            "SUCCESS",
-            ""
-        )
-
-        filename = f"ai_proposal_{client_id}.docx"
-
-        return Response(
-            content=proposal_bytes,
-            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            headers={
-                "Content-Disposition": f"attachment; filename={filename}"
-            }
-        )
-    except ValueError as e:
-        raise HTTPException(404, str(e))
-    except Exception as e:
-        logger.error(f"AI proposal failed: {e}")
-        raise HTTPException(500, str(e))
-
-# ─── Advanced Reports ──────────────────────────────────
-
-@app.get("/reports/weekly", tags=["Reports"])
-async def weekly_report(
-    username: str = Depends(verify_credentials)
-):
-    """Download weekly performance report"""
-    try:
-        clients = await sheets.get_all_clients(limit=1000)
-        activities = await sheets.search_activities(limit=500)
-        pipeline = await sheets.get_pipeline_summary()
-
-        report_bytes = generate_weekly_report(
-            clients, activities, pipeline
-        )
-
-        return Response(
-            content=report_bytes,
-            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            headers={
-                "Content-Disposition": "attachment; filename=weekly_report.docx"
-            }
-        )
-    except Exception as e:
-        logger.error(f"Weekly report failed: {e}")
-        raise HTTPException(500, str(e))
-
-@app.get("/reports/monthly", tags=["Reports"])
-async def monthly_report(
-    month: Optional[str] = Query(None),
-    username: str = Depends(verify_credentials)
-):
-    """Download monthly pipeline report"""
-    try:
-        clients = await sheets.get_all_clients(limit=1000)
-        activities = await sheets.search_activities(limit=1000)
-        pipeline = await sheets.get_pipeline_summary()
-
-        report_bytes = generate_monthly_report(
-            clients, activities, pipeline, month
-        )
-
-        return Response(
-            content=report_bytes,
-            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            headers={
-                "Content-Disposition": "attachment; filename=monthly_report.docx"
-            }
-        )
-    except Exception as e:
-        logger.error(f"Monthly report failed: {e}")
-        raise HTTPException(500, str(e))
-
-@app.get("/reports/acquisition", tags=["Reports"])
-async def acquisition_report(
-    username: str = Depends(verify_credentials)
-):
-    """Download client acquisition report"""
-    try:
-        clients = await sheets.get_all_clients(limit=1000)
-
-        report_bytes = generate_client_acquisition_report(
-            clients
-        )
-
-        return Response(
-            content=report_bytes,
-            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            headers={
-                "Content-Disposition": "attachment; filename=acquisition_report.docx"
-            }
-        )
-    except Exception as e:
-        logger.error(f"Acquisition report failed: {e}")
-        raise HTTPException(500, str(e))
-
-@app.get("/reports/agent-activity", tags=["Reports"])
-async def agent_activity_report(
-    username: str = Depends(verify_credentials)
-):
-    """Download agent activity report"""
-    try:
-        activities = await sheets.search_activities(
-            limit=1000
-        )
-
-        spreadsheet = sheets.get_spreadsheet()
-        logs_sheet = spreadsheet.worksheet("Agent Logs")
-        agent_logs = logs_sheet.get_all_records()
-
-        report_bytes = generate_agent_activity_report(
-            activities, agent_logs
-        )
-
-        return Response(
-            content=report_bytes,
-            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            headers={
-                "Content-Disposition": "attachment; filename=agent_activity_report.docx"
-            }
-        )
-    except Exception as e:
-        logger.error(f"Agent report failed: {e}")
-        raise HTTPException(500, str(e))
-
-# ─── Search & Intelligence ─────────────────────────────
-
-@app.post("/search", tags=["Search"])
-async def natural_language_search_endpoint(
-    data: NLSearchInput,
-    username: str = Depends(verify_credentials)
-):
-    """
-    Search clients using natural language.
-    Examples:
-    - 'Find high priority clients in consultation stage'
-    - 'Show me clients interested in AI automation'
-    - 'Who needs a follow up this week?'
-    """
-    try:
-        clients = await sheets.get_all_clients(limit=1000)
-
-        if not clients:
-            return {
-                "ok": True,
-                "query": data.query,
-                "total_matches": 0,
-                "matched_clients": []
-            }
-
-        result = await nl_search(data.query, clients)
-
-        await sheets.log_agent(
-            "NL_SEARCH",
-            data.query,
-            f"Found {result.get('total_matches', 0)} matches"
-        )
-
-        return {
-            "ok": True,
-            "query": data.query,
-            **result
-        }
-    except Exception as e:
-        logger.error(f"Search failed: {e}")
-        raise HTTPException(500, str(e))
-
-@app.post("/search/filter", tags=["Search"])
-async def smart_filter_endpoint(
-    data: SmartFilterInput,
-    username: str = Depends(verify_credentials)
-):
-    """
-    Filter clients with complex natural language criteria.
-    Examples:
-    - 'Clients who havent been contacted in 2 weeks'
-    - 'High value clients stuck in proposal stage'
-    - 'Clients likely to churn'
-    - 'New clients from this month'
-    """
-    try:
-        clients = await sheets.get_all_clients(limit=1000)
-        result = await smart_filter(data.criteria, clients)
-
-        await sheets.log_agent(
-            "SMART_FILTER",
-            data.criteria,
-            f"Found {result.get('total_matches', 0)} matches"
-        )
-
-        return {
-            "ok": True,
-            "criteria": data.criteria,
-            **result
-        }
-    except Exception as e:
-        raise HTTPException(500, str(e))
-
 @app.get("/insights/patterns", tags=["Intelligence"])
 async def pipeline_pattern_detection(
     username: str = Depends(verify_credentials)
 ):
-    """
-    AI detects patterns across your entire pipeline.
-    Finds segments, bottlenecks, and growth opportunities.
-    """
+    """AI detects patterns across pipeline"""
     try:
         clients = await sheets.get_all_clients(limit=1000)
-
         if not clients:
             raise HTTPException(400, "No clients to analyze")
-
         patterns = await pipeline_patterns(clients)
-
-        await sheets.log_agent(
-            "PATTERN_DETECTION",
-            f"Analyzed {len(clients)} clients",
-            str(patterns)
-        )
-
         return {
             "ok": True,
             "total_clients_analyzed": len(clients),
@@ -1458,24 +1038,12 @@ async def pipeline_pattern_detection(
 async def revenue_forecast_endpoint(
     username: str = Depends(verify_credentials)
 ):
-    """
-    AI forecasts expected revenue from current pipeline.
-    Projects 30-day and 90-day revenue estimates.
-    """
+    """AI forecasts pipeline revenue"""
     try:
         clients = await sheets.get_all_clients(limit=1000)
-
         if not clients:
             raise HTTPException(400, "No clients to forecast")
-
         forecast = await forecast_revenue(clients)
-
-        await sheets.log_agent(
-            "REVENUE_FORECAST",
-            f"Forecast for {len(clients)} clients",
-            str(forecast)
-        )
-
         return {
             "ok": True,
             "total_clients": len(clients),
@@ -1489,36 +1057,16 @@ async def revenue_forecast_endpoint(
 async def win_loss_analysis_endpoint(
     username: str = Depends(verify_credentials)
 ):
-    """
-    AI analyzes won and lost deals for patterns.
-    Identifies what makes deals succeed or fail.
-    """
+    """AI analyzes won and lost deals"""
     try:
         clients = await sheets.get_all_clients(limit=1000)
-
-        won = [
-            c for c in clients
-            if c.get("stage") == "Won"
-        ]
-        lost = [
-            c for c in clients
-            if c.get("stage") == "Lost"
-        ]
-
+        won = [c for c in clients if c.get("stage") == "Won"]
+        lost = [c for c in clients if c.get("stage") == "Lost"]
         if not won and not lost:
             raise HTTPException(
-                400,
-                "No won or lost deals to analyze yet"
+                400, "No won or lost deals to analyze yet"
             )
-
         analysis = await analyze_win_loss(clients)
-
-        await sheets.log_agent(
-            "WIN_LOSS_ANALYSIS",
-            f"Won: {len(won)}, Lost: {len(lost)}",
-            str(analysis)
-        )
-
         return {
             "ok": True,
             "won_count": len(won),
@@ -1529,15 +1077,469 @@ async def win_loss_analysis_endpoint(
         logger.error(f"Win/loss analysis failed: {e}")
         raise HTTPException(500, str(e))
 
-# ─── ARIA Chat ─────────────────────────────────────────
+# ── Search ─────────────────────────────────────────────
+
+@app.post("/search", tags=["Search"])
+async def natural_language_search_endpoint(
+    data: NLSearchInput,
+    username: str = Depends(verify_credentials)
+):
+    """Search clients using natural language"""
+    try:
+        clients = await sheets.get_all_clients(limit=1000)
+        if not clients:
+            return {
+                "ok": True,
+                "query": data.query,
+                "total_matches": 0,
+                "matched_clients": []
+            }
+        result = await nl_search(data.query, clients)
+        await sheets.log_agent(
+            "NL_SEARCH", data.query,
+            f"Found {result.get('total_matches', 0)} matches"
+        )
+        return {"ok": True, "query": data.query, **result}
+    except Exception as e:
+        logger.error(f"Search failed: {e}")
+        raise HTTPException(500, str(e))
+
+@app.post("/search/filter", tags=["Search"])
+async def smart_filter_endpoint(
+    data: SmartFilterInput,
+    username: str = Depends(verify_credentials)
+):
+    """Filter clients with natural language criteria"""
+    try:
+        clients = await sheets.get_all_clients(limit=1000)
+        result = await smart_filter(data.criteria, clients)
+        await sheets.log_agent(
+            "SMART_FILTER", data.criteria,
+            f"Found {result.get('total_matches', 0)} matches"
+        )
+        return {"ok": True, "criteria": data.criteria, **result}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+# ── Documents: Contracts, Invoices, Proposals ──────────
+
+@app.post("/clients/{client_id}/contract", tags=["Documents"])
+async def create_contract(
+    client_id: str,
+    data: GenerateContractInput,
+    username: str = Depends(verify_credentials)
+):
+    """Generate a professional service contract"""
+    try:
+        import uuid
+        client = await sheets.require_client(client_id)
+        contract_data = data.model_dump()
+        contract_data["contract_number"] = (
+            "CON-" + str(uuid.uuid4())[:8].upper()
+        )
+        contract_bytes = generate_contract(client, contract_data)
+        await sheets.log_activity(
+            client_id, "CONTRACT_GENERATED",
+            f"Contract for {client['name']}", "SUCCESS", ""
+        )
+        return Response(
+            content=contract_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": f"attachment; filename=contract_{client_id}.docx"}
+        )
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+@app.post("/clients/{client_id}/invoice", tags=["Documents"])
+async def create_invoice(
+    client_id: str,
+    data: GenerateInvoiceInput,
+    username: str = Depends(verify_credentials)
+):
+    """Generate a professional invoice"""
+    try:
+        client = await sheets.require_client(client_id)
+        invoice_data = data.model_dump()
+        invoice_data["line_items"] = [
+            item if isinstance(item, dict) else item.model_dump()
+            for item in data.line_items
+        ]
+        invoice_bytes = generate_invoice(client, invoice_data)
+        await sheets.log_activity(
+            client_id, "INVOICE_GENERATED",
+            f"Invoice for {client['name']}", "SUCCESS", ""
+        )
+        return Response(
+            content=invoice_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": f"attachment; filename=invoice_{client_id}.docx"}
+        )
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+@app.post("/clients/{client_id}/proposal", tags=["Documents"])
+async def create_proposal(
+    client_id: str,
+    data: GenerateProposalInput,
+    username: str = Depends(verify_credentials)
+):
+    """Generate a professional business proposal"""
+    try:
+        client = await sheets.require_client(client_id)
+        proposal_bytes = generate_proposal(client, data.model_dump())
+        await sheets.log_activity(
+            client_id, "PROPOSAL_GENERATED",
+            f"Proposal for {client['name']}", "SUCCESS", ""
+        )
+        await sheets.update_stage(
+            client_id, "Proposal Sent", changed_by=username
+        )
+        return Response(
+            content=proposal_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": f"attachment; filename=proposal_{client_id}.docx"}
+        )
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+@app.post("/clients/{client_id}/ai-proposal", tags=["Documents"])
+async def ai_generate_proposal(
+    client_id: str,
+    provider_name: str,
+    provider_email: Optional[str] = None,
+    username: str = Depends(verify_credentials)
+):
+    """AI automatically generates a complete proposal"""
+    try:
+        client = await sheets.require_client(client_id)
+        analysis = await analyze_client(client)
+        proposal_data = {
+            "provider_name": provider_name,
+            "provider_email": provider_email,
+            "executive_summary": analysis.get("executive_summary", ""),
+            "problem_statement": analysis.get("business_problem", ""),
+            "proposed_solution": f"We propose to address your {client.get('service', 'needs')} through our proven methodology.",
+            "scope_items": analysis.get("recommendations", []),
+            "next_steps": ["Review proposal", "Discovery call", "Sign agreement", "Project kickoff"],
+            "why_us": ["Proven track record", "Dedicated support", "Transparent pricing", "On-time delivery"]
+        }
+        proposal_bytes = generate_proposal(client, proposal_data)
+        await sheets.log_activity(
+            client_id, "AI_PROPOSAL_GENERATED",
+            f"AI proposal for {client['name']}", "SUCCESS", ""
+        )
+        return Response(
+            content=proposal_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": f"attachment; filename=ai_proposal_{client_id}.docx"}
+        )
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+# ── Reports ────────────────────────────────────────────
+
+@app.get("/reports/weekly", tags=["Reports"])
+async def weekly_report(username: str = Depends(verify_credentials)):
+    """Download weekly performance report"""
+    try:
+        clients = await sheets.get_all_clients(limit=1000)
+        activities = await sheets.search_activities(limit=500)
+        pipeline = await sheets.get_pipeline_summary()
+        report_bytes = generate_weekly_report(clients, activities, pipeline)
+        return Response(
+            content=report_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": "attachment; filename=weekly_report.docx"}
+        )
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+@app.get("/reports/monthly", tags=["Reports"])
+async def monthly_report(
+    month: Optional[str] = Query(None),
+    username: str = Depends(verify_credentials)
+):
+    """Download monthly pipeline report"""
+    try:
+        clients = await sheets.get_all_clients(limit=1000)
+        activities = await sheets.search_activities(limit=1000)
+        pipeline = await sheets.get_pipeline_summary()
+        report_bytes = generate_monthly_report(clients, activities, pipeline, month)
+        return Response(
+            content=report_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": "attachment; filename=monthly_report.docx"}
+        )
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+@app.get("/reports/acquisition", tags=["Reports"])
+async def acquisition_report(username: str = Depends(verify_credentials)):
+    """Download client acquisition report"""
+    try:
+        clients = await sheets.get_all_clients(limit=1000)
+        report_bytes = generate_client_acquisition_report(clients)
+        return Response(
+            content=report_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": "attachment; filename=acquisition_report.docx"}
+        )
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+@app.get("/reports/agent-activity", tags=["Reports"])
+async def agent_activity_report(username: str = Depends(verify_credentials)):
+    """Download agent activity report"""
+    try:
+        activities = await sheets.search_activities(limit=1000)
+        spreadsheet = sheets.get_spreadsheet()
+        logs_sheet = spreadsheet.worksheet("Agent Logs")
+        agent_logs = logs_sheet.get_all_records()
+        report_bytes = generate_agent_activity_report(activities, agent_logs)
+        return Response(
+            content=report_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": "attachment; filename=agent_activity_report.docx"}
+        )
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+# ── ARIA Chat ──────────────────────────────────────────
+
+async def execute_aria_action(
+    action: dict,
+    settings,
+    sheets_module
+) -> tuple:
+    """Execute a CRM action. Returns (summary, result)"""
+    action_type = action.get("action_type", "none")
+    client_id = action.get("client_id")
+    summary = ""
+    result = {}
+
+    try:
+        if action_type == "create_client":
+            data = {
+                "name": action.get("name", ""),
+                "email": action.get("email"),
+                "company": action.get("company"),
+                "phone": action.get("phone"),
+                "service": action.get("service"),
+                "priority": action.get("priority", "Medium"),
+                "stage": action.get("stage", "New"),
+                "notes": action.get("notes")
+            }
+            client = await sheets_module.create_client(data)
+            summary = (
+                f"✅ Created: {client['name']} "
+                f"| ID: {client['client_id']} "
+                f"| Saved to Google Sheets"
+            )
+            result = client
+
+        elif action_type == "update_stage" and client_id:
+            res = await sheets_module.update_stage(
+                client_id,
+                action.get("new_stage", "New"),
+                changed_by="aria"
+            )
+            summary = (
+                f"✅ Stage: {res.get('previous_stage')} → "
+                f"{res.get('new_stage')} | Google Sheets updated"
+            )
+            result = res
+
+        elif action_type == "update_client" and client_id:
+            updates = action.get("update_fields", {})
+            if updates:
+                res = await sheets_module.update_client(
+                    client_id, updates, changed_by="aria"
+                )
+                summary = (
+                    f"✅ Updated {list(updates.keys())} "
+                    f"| Google Sheets updated"
+                )
+                result = res or {}
+
+        elif action_type in ("send_email", "create_draft"):
+            to = action.get("recipient_email")
+            if client_id and not to:
+                client = await sheets_module.require_client(client_id)
+                to = client.get("email")
+            if not to:
+                summary = "❌ No recipient email found"
+            else:
+                if client_id and action.get("update_email_in_crm"):
+                    await sheets_module.update_client(
+                        client_id, {"email": to}, changed_by="aria"
+                    )
+                if action_type == "send_email":
+                    from app.services.gmail import send_email as gs
+                    res = await gs(
+                        to=to,
+                        subject=action.get("subject", "Follow up"),
+                        body=action.get("body", ""),
+                        from_email=settings.gmail_address
+                    )
+                    if client_id:
+                        await sheets_module.log_activity(
+                            client_id, "EMAIL_SENT",
+                            f"ARIA sent to {to}", "SUCCESS", ""
+                        )
+                    summary = (
+                        f"✅ Email sent to {to} "
+                        f"| ID: {res.get('message_id')}"
+                    )
+                    result = res
+                else:
+                    from app.services.gmail import create_draft as gd
+                    res = await gd(
+                        to=to,
+                        subject=action.get("subject", "Follow up"),
+                        body=action.get("body", ""),
+                        from_email=settings.gmail_address
+                    )
+                    if client_id:
+                        await sheets_module.log_activity(
+                            client_id, "EMAIL_DRAFT_CREATED",
+                            f"ARIA draft for {to}", "SUCCESS",
+                            res.get("gmail_drafts_url", "")
+                        )
+                    summary = (
+                        f"✅ Draft saved to Gmail for {to} "
+                        f"| Draft ID: {res.get('draft_id')}"
+                    )
+                    result = res
+
+        elif action_type == "schedule_meeting" and client_id:
+            from app.services.calendar import schedule_meeting as sm
+            from datetime import datetime, timedelta
+
+            def parse_dt(s):
+                if not s:
+                    return None
+                s = str(s).strip()
+                for fmt in [
+                    "%Y-%m-%dT%H:%M:%S",
+                    "%Y-%m-%dT%H:%M",
+                    "%Y-%m-%d %H:%M:%S",
+                    "%Y-%m-%d %H:%M",
+                    "%Y-%m-%d"
+                ]:
+                    try:
+                        return datetime.strptime(
+                            s[:19], fmt
+                        ).strftime("%Y-%m-%dT%H:%M:%S-06:00")
+                    except Exception:
+                        continue
+                return s
+
+            ps = parse_dt(action.get("start_time", ""))
+            pe = parse_dt(action.get("end_time", ""))
+
+            if ps and not pe:
+                try:
+                    pe = (
+                        datetime.fromisoformat(
+                            ps.replace("Z", "+00:00")
+                        ) + timedelta(hours=1)
+                    ).strftime("%Y-%m-%dT%H:%M:%S-06:00")
+                except Exception:
+                    pe = ps
+
+            if not ps:
+                summary = "❌ Could not parse meeting time"
+            else:
+                client = await sheets_module.require_client(client_id)
+                res = await sm(
+                    client=client,
+                    title=action.get("title", f"Meeting - {client.get('name')}"),
+                    start_time=ps,
+                    end_time=pe,
+                    description=action.get("description", ""),
+                    location=action.get("location", ""),
+                    invite_client=action.get("invite_client", False)
+                )
+                await sheets_module.log_activity(
+                    client_id, "MEETING_SCHEDULED",
+                    f"ARIA scheduled: {res.get('title')}",
+                    "SUCCESS", res.get("calendar_link", "")
+                )
+                summary = (
+                    f"✅ Meeting: {res.get('title')} "
+                    f"| {res.get('start_time')} "
+                    f"| Calendar updated"
+                )
+                result = res
+
+        elif action_type == "score_client" and client_id:
+            client = await sheets_module.require_client(client_id)
+            score = await score_single_client(client)
+            summary = (
+                f"✅ Score: {score.get('lead_score')}/10 "
+                f"| Churn: {score.get('churn_risk')} "
+                f"| Close: {score.get('estimated_close_probability')}%"
+            )
+            result = score
+
+        elif action_type == "archive_client" and client_id:
+            res = await sheets_module.archive_client(client_id)
+            summary = f"✅ Client archived | Google Sheets updated"
+            result = res
+
+        elif action_type == "rollback_last" and client_id:
+            res = await sheets_module.rollback_last_change(client_id)
+            summary = (
+                f"✅ Rolled back '{res.get('field')}': "
+                f"'{res.get('rolled_back_from')}' → "
+                f"'{res.get('rolled_back_to')}'"
+            )
+            result = res
+
+        elif action_type == "rollback_field" and client_id:
+            field = action.get("field")
+            if field:
+                res = await sheets_module.rollback_client_field(
+                    client_id, field
+                )
+                summary = (
+                    f"✅ Rolled back '{field}': "
+                    f"'{res.get('rolled_back_from')}' → "
+                    f"'{res.get('rolled_back_to')}'"
+                )
+                result = res
+
+        elif action_type == "update_followup" and client_id:
+            date = action.get("follow_up_date")
+            if date:
+                res = await sheets_module.update_next_followup(
+                    client_id, date
+                )
+                summary = f"✅ Follow-up set to {date} | Google Sheets updated"
+                result = res
+
+    except Exception as e:
+        logger.error(f"Action failed [{action_type}]: {e}")
+        summary = f"❌ Failed: {str(e)}"
+
+    return summary, result
+
 
 @app.post("/aria/chat", tags=["ARIA"])
 async def aria_chat(
     data: AgentChat,
     username: str = Depends(verify_credentials)
 ):
+    """ARIA — AI CRM assistant with action execution"""
     try:
-        import google.genai as genai
         settings = get_settings()
 
         # Load CRM context
@@ -1555,138 +1557,114 @@ async def aria_chat(
                 "phone": c.get("phone"),
                 "service": c.get("service"),
                 "next_follow_up": c.get("next_follow_up"),
-                "notes": c.get("notes", "")[:200]
+                "notes": str(c.get("notes", ""))[:200]
             }
             for c in all_clients
         ]
 
-        # Build conversation history
+        # Build history
         history_text = ""
-        if data.history and len(data.history) > 0:
-            history_text = "\nCONVERSATION HISTORY:\n"
-            history_text += "=" * 40 + "\n"
+        if data.history:
+            history_text = "\nCONVERSATION HISTORY:\n" + "=" * 40 + "\n"
             for msg in data.history:
                 role = "User" if msg.role == "user" else "ARIA"
                 history_text += f"{role}: {msg.content}\n"
             history_text += "=" * 40 + "\n"
 
         # Session context
-        session_text = ""
         ctx = data.session_context or {}
+        session_text = ""
         if ctx.get("lastClientName"):
             session_text += (
-                f"\nLast discussed: "
-                f"{ctx.get('lastClientName')} "
+                f"\nLast discussed: {ctx['lastClientName']} "
                 f"({ctx.get('lastClientId')})\n"
             )
         if ctx.get("pendingAction"):
             session_text += (
                 f"Pending action: "
-                f"{json.dumps(ctx.get('pendingAction'))}\n"
+                f"{json.dumps(ctx['pendingAction'])}\n"
             )
         if ctx.get("lastCompletedAction"):
             session_text += (
                 f"Last completed: "
-                f"{ctx.get('lastCompletedAction')}\n"
+                f"{ctx['lastCompletedAction']}\n"
             )
 
-        model = genai.Client(
-            api_key=settings.gemini_api_key
-        )
-
-        # ── STEP 1: Intent Detection ───────────────────
+        # ── Step 1: Intent Detection ───────────────────
         intent_prompt = f"""You are ARIA, an AI CRM assistant.
 Analyze the conversation and determine what action to take.
 
-CONVERSATION HISTORY:
+HISTORY:
 {history_text}
 
-SESSION CONTEXT:
+SESSION:
 {session_text}
 
 CURRENT MESSAGE: {data.message}
 
-ALL CRM CLIENTS:
+ALL CLIENTS:
 {json.dumps(client_list, indent=2)}
 
-CRM PIPELINE:
+PIPELINE:
 Total: {pipeline.get('total_clients', 0)}
 High Priority: {pipeline.get('high_priority_pending_count', 0)}
 Won: {pipeline.get('won_count', 0)}
 Stages: {json.dumps(pipeline.get('stage_counts', {}))}
 
-INSTRUCTIONS:
-1. Use conversation history to understand context
-2. If user confirms pending action → set is_confirmation=true
-3. If user cancels → set is_cancellation=true
-4. If user says undo/rollback → action_type=rollback_last
-5. For new clients → action_type=create_client
-6. For emails → use exact email from user message if provided
-7. Convert all meeting times to ISO: 2026-06-20T14:00:00-06:00
-8. Find client_id from the clients list by matching name
-9. Read-only actions (score, rollback) skip confirmation
-10. Write actions (create, email, update, meeting) need confirmation
+RULES:
+1. Use full history to understand context and references
+2. "yes/confirm/go ahead/sure/ok" → is_confirmation=true
+3. "no/cancel/stop/never mind" → is_cancellation=true
+4. "undo/rollback/revert" → action_type=rollback_last
+5. Match client by name from the clients list
+6. Use email from user message if provided over CRM email
+7. Convert times to ISO: 2026-06-20T14:00:00-06:00
+8. score_client and rollback → needs_confirmation=false
+9. create_client, send_email, update, meeting → needs_confirmation=true
 
-RESPOND WITH ONLY THIS JSON (no markdown, no explanation):
+RESPOND WITH ONLY VALID JSON:
 {{
-  "is_action": true/false,
-  "is_confirmation": true/false,
-  "is_cancellation": true/false,
-  "needs_confirmation": true/false,
+  "is_action": true,
+  "is_confirmation": false,
+  "is_cancellation": false,
+  "needs_confirmation": true,
   "action_type": "create_client|update_stage|update_client|send_email|create_draft|schedule_meeting|score_client|archive_client|rollback_last|rollback_field|update_followup|none",
   "client_id": "CL-XXXXXXXX or null",
-  "client_name": "name or null",
-  "name": "if create_client",
-  "email": "if create_client",
-  "company": "if create_client",
-  "phone": "if create_client",
-  "service": "if create_client",
-  "priority": "High/Medium/Low if create_client",
-  "stage": "New/Contacted/etc if create_client",
-  "notes": "if create_client",
-  "new_stage": "stage name if update_stage",
-  "update_fields": {{"field": "value"}} ,
-  "recipient_email": "email for send_email/create_draft",
-  "update_email_in_crm": true/false,
+  "client_name": "matched client name",
+  "name": "for create_client",
+  "email": "for create_client",
+  "company": "for create_client",
+  "phone": "for create_client",
+  "service": "for create_client",
+  "priority": "High|Medium|Low",
+  "stage": "New|Contacted|etc",
+  "notes": "for create_client",
+  "new_stage": "for update_stage",
+  "update_fields": {{}},
+  "recipient_email": "for emails",
+  "update_email_in_crm": false,
   "subject": "email subject",
   "body": "full email body",
   "title": "meeting title",
-  "start_time": "ISO datetime 2026-06-20T14:00:00-06:00",
-  "end_time": "ISO datetime",
-  "location": "meeting location",
-  "description": "meeting description",
+  "start_time": "2026-06-20T14:00:00-06:00",
+  "end_time": "2026-06-20T15:00:00-06:00",
+  "location": "location",
+  "description": "description",
   "invite_client": false,
-  "field": "field name for rollback_field",
-  "follow_up_date": "YYYY-MM-DD for update_followup",
-  "confirmation_summary": "one line: EXACTLY what will happen"
+  "field": "for rollback_field",
+  "follow_up_date": "YYYY-MM-DD",
+  "confirmation_summary": "one clear line of exactly what will happen"
 }}"""
 
-        intent_resp = model.models.generate_content(
-            model="models/gemma-4-26b-a4b-it",
-            contents=intent_prompt
-        )
+        intent_text = await generate(intent_prompt, expect_json=True)
 
-        intent_text = intent_resp.text.strip()
-        intent_text = intent_text.replace(
-            "```json", ""
-        ).replace("```", "").strip()
-
-        # Parse intent
         try:
             intent = json.loads(intent_text)
         except json.JSONDecodeError:
-            # Try to extract JSON from response
-            import re
             match = re.search(r'\{.*\}', intent_text, re.DOTALL)
-            if match:
-                try:
-                    intent = json.loads(match.group())
-                except Exception:
-                    intent = {"is_action": False}
-            else:
-                intent = {"is_action": False}
+            intent = json.loads(match.group()) if match else {"is_action": False}
 
-        # ── STEP 2: Execute Action ─────────────────────
+        # ── Step 2: Execute ────────────────────────────
         action_summary = ""
         action_result = {}
         pending_action = None
@@ -1695,168 +1673,113 @@ RESPOND WITH ONLY THIS JSON (no markdown, no explanation):
         is_confirmation = intent.get("is_confirmation", False)
         is_cancellation = intent.get("is_cancellation", False)
         is_action = intent.get("is_action", False)
-        needs_confirmation = intent.get(
-            "needs_confirmation", True
-        )
+        needs_confirmation = intent.get("needs_confirmation", True)
         action_type = intent.get("action_type", "none")
 
-        # Read-only actions — execute immediately
-        read_only = {
-            "score_client",
-            "rollback_last",
-            "rollback_field",
-            "none"
-        }
+        read_only = {"score_client", "rollback_last", "rollback_field"}
 
         if is_cancellation:
             action_summary = "cancelled"
-            pending_action = None
 
         elif is_confirmation and ctx.get("pendingAction"):
-            # Execute the confirmed pending action
             pending = ctx["pendingAction"]
-            action_summary, action_result = \
-                await execute_aria_action(
-                    pending, settings, sheets
-                )
-            executed = True
-            pending_action = None
-
-        elif is_action and action_type in read_only \
-                and action_type != "none":
-            # Execute read-only immediately
-            action_summary, action_result = \
-                await execute_aria_action(
-                    intent, settings, sheets
-                )
+            action_summary, action_result = await execute_aria_action(
+                pending, settings, sheets
+            )
             executed = True
 
-        elif is_action and action_type != "none" \
-                and needs_confirmation:
-            # Store for confirmation
+        elif is_action and action_type in read_only:
+            action_summary, action_result = await execute_aria_action(
+                intent, settings, sheets
+            )
+            executed = True
+
+        elif is_action and action_type != "none" and needs_confirmation:
             pending_action = intent
 
-        elif is_action and action_type != "none" \
-                and not needs_confirmation:
-            # Execute immediately without confirmation
-            action_summary, action_result = \
-                await execute_aria_action(
-                    intent, settings, sheets
-                )
+        elif is_action and action_type != "none" and not needs_confirmation:
+            action_summary, action_result = await execute_aria_action(
+                intent, settings, sheets
+            )
             executed = True
 
-        # ── STEP 3: Generate Response ──────────────────
+        # ── Step 3: Generate Response ──────────────────
         if action_summary == "cancelled":
-            response_instruction = (
-                "The user cancelled the pending action. "
-                "Acknowledge politely and ask what else "
-                "you can help with."
-            )
+            instruction = "The user cancelled. Acknowledge politely and offer help."
         elif pending_action:
-            conf_summary = intent.get(
-                "confirmation_summary", ""
-            )
-            response_instruction = (
-                f"You are about to perform this action:\n"
-                f"{conf_summary}\n\n"
-                f"Full details: "
-                f"{json.dumps(pending_action, indent=2)}\n\n"
-                f"Ask the user to confirm. Show exactly what "
-                f"will happen in a clear, friendly way. "
+            instruction = (
+                f"About to perform: {intent.get('confirmation_summary', '')}\n"
+                f"Details: {json.dumps(pending_action, indent=2)}\n"
+                f"Ask user to confirm. Show exactly what will happen. "
                 f"End with 'Shall I go ahead?'"
             )
         elif executed and action_summary:
-            response_instruction = (
-                f"You just completed this action:\n"
-                f"{action_summary}\n\n"
-                f"Tell the user exactly what was done. "
-                f"Be specific — mention Google Sheets, Gmail, "
-                f"or Calendar was updated. "
-                f"Mention they can say 'undo' to reverse. "
-                f"Offer to do the next step."
+            instruction = (
+                f"Just completed: {action_summary}\n"
+                f"Tell user what was done. Be specific about "
+                f"Google Sheets/Gmail/Calendar being updated. "
+                f"Say they can 'undo' to reverse. Offer next step."
             )
         else:
-            response_instruction = (
-                f"Answer the user's question using the CRM data. "
-                f"Be specific, helpful, and concise. "
-                f"If they want to do something, identify "
-                f"the action and ask for details if needed."
+            instruction = (
+                f"Answer the user's question using CRM data. "
+                f"Be specific, helpful, concise."
             )
 
-        response_prompt = f"""You are ARIA, an AI Relationship Intelligence Assistant for a CRM system.
+        response_prompt = f"""You are ARIA, AI Relationship Intelligence Assistant.
 
-CONVERSATION HISTORY:
+HISTORY:
 {history_text}
 
-SESSION CONTEXT:
+SESSION:
 {session_text}
 
-CRM STATE:
-Total Clients: {pipeline.get('total_clients', 0)}
-High Priority Pending: {pipeline.get('high_priority_pending_count', 0)}
-Won: {pipeline.get('won_count', 0)}
-Lost: {pipeline.get('lost_count', 0)}
+CRM:
+Total: {pipeline.get('total_clients', 0)} clients
+High Priority: {pipeline.get('high_priority_pending_count', 0)}
+Won: {pipeline.get('won_count', 0)} | Lost: {pipeline.get('lost_count', 0)}
 Stages: {json.dumps(pipeline.get('stage_counts', {}))}
 
-ALL CLIENTS:
+CLIENTS:
 {json.dumps(client_list, indent=2)}
 
-CURRENT USER MESSAGE: {data.message}
+USER: {data.message}
 
-YOUR TASK:
-{response_instruction}
+TASK: {instruction}
 
-IMPORTANT:
+Rules:
 - Remember full conversation context
-- When user says she/he/they/it - use history to identify who
-- Be conversational, warm, and professional
-- Keep response concise but complete
+- she/he/they/it → use history to identify client
+- Be warm, professional, concise
 
 ARIA:"""
 
-        response_resp = model.models.generate_content(
-            model="models/gemma-4-26b-a4b-it",
-            contents=response_prompt
+        reply = await generate(response_prompt)
+
+        # ── Step 4: Update Context ─────────────────────
+        context_update = {}
+        msg_lower = data.message.lower()
+
+        mentioned = next(
+            (c for c in all_clients
+             if c.get("name", "").lower() in msg_lower
+             or c.get("client_id", "").lower() in msg_lower),
+            None
         )
 
-        reply = response_resp.text.strip()
-
-        # ── STEP 4: Update Context ─────────────────────
-        context_update = {}
-
-        # Track mentioned client
-        mentioned = None
-        msg_lower = data.message.lower()
-        for c in all_clients:
-            if (c.get("name", "").lower() in msg_lower or
-                    (c.get("client_id", "").lower()
-                     in msg_lower)):
-                mentioned = c
-                break
-
-        # Use session context client if none found in message
         if not mentioned and ctx.get("lastClientId"):
             mentioned = next(
                 (c for c in all_clients
-                 if c.get("client_id") ==
-                 ctx.get("lastClientId")),
+                 if c.get("client_id") == ctx["lastClientId"]),
                 None
             )
 
-        # If we just created a client, track it
-        if (executed and
-                action_type == "create_client" and
-                action_result.get("client_id")):
-            context_update["lastClientId"] = \
-                action_result["client_id"]
-            context_update["lastClientName"] = \
-                action_result.get("name", "")
-
+        if executed and action_type == "create_client" and action_result.get("client_id"):
+            context_update["lastClientId"] = action_result["client_id"]
+            context_update["lastClientName"] = action_result.get("name", "")
         elif mentioned:
-            context_update["lastClientId"] = \
-                mentioned.get("client_id")
-            context_update["lastClientName"] = \
-                mentioned.get("name")
+            context_update["lastClientId"] = mentioned.get("client_id")
+            context_update["lastClientName"] = mentioned.get("name")
 
         context_update["lastAction"] = data.message
 
@@ -1872,325 +1795,23 @@ ARIA:"""
         elif action_summary == "cancelled":
             context_update["pendingAction"] = None
 
-        await sheets.log_agent(
-            "ARIA_CHAT", data.message, reply
-        )
+        await sheets.log_agent("ARIA_CHAT", data.message, reply)
 
         return {
             "ok": True,
             "message": data.message,
             "response": reply,
-            "action_executed": action_summary
-            if (executed and
-                action_summary and
-                action_summary != "cancelled")
-            else None,
+            "action_executed": action_summary if (executed and action_summary and action_summary != "cancelled") else None,
             "needs_confirmation": bool(pending_action),
             "context": context_update
         }
 
     except Exception as e:
+        error_msg = str(e)
         logger.error(f"ARIA chat failed: {e}")
-        raise HTTPException(500, str(e))
-
-
-# ─── ARIA Action Executor ──────────────────────────────
-
-async def execute_aria_action(
-    action: dict,
-    settings,
-    sheets_module
-) -> tuple:
-    """
-    Execute a single CRM action.
-    Returns (summary_string, result_dict)
-    """
-    action_type = action.get("action_type", "none")
-    client_id = action.get("client_id")
-    summary = ""
-    result = {}
-
-    try:
-        # ── Create Client ──────────────────────────────
-        if action_type == "create_client":
-            data = {
-                "name": action.get("name", ""),
-                "email": action.get("email"),
-                "company": action.get("company"),
-                "phone": action.get("phone"),
-                "service": action.get("service"),
-                "priority": action.get("priority", "Medium"),
-                "stage": action.get("stage", "New"),
-                "notes": action.get("notes")
-            }
-            client = await sheets_module.create_client(data)
-            summary = (
-                f"✅ Created client: {client['name']} "
-                f"| ID: {client['client_id']} "
-                f"| Saved to Google Sheets"
+        if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
+            raise HTTPException(
+                429,
+                "Rate limit reached. Please wait 30 seconds and try again."
             )
-            result = client
-
-        # ── Update Stage ───────────────────────────────
-        elif action_type == "update_stage" and client_id:
-            res = await sheets_module.update_stage(
-                client_id,
-                action.get("new_stage", "New"),
-                changed_by="aria"
-            )
-            summary = (
-                f"✅ Stage updated: "
-                f"{res.get('previous_stage')} → "
-                f"{res.get('new_stage')} "
-                f"| Saved to Google Sheets"
-            )
-            result = res
-
-        # ── Update Client ──────────────────────────────
-        elif action_type == "update_client" and client_id:
-            updates = action.get("update_fields", {})
-            if updates:
-                res = await sheets_module.update_client(
-                    client_id, updates,
-                    changed_by="aria"
-                )
-                summary = (
-                    f"✅ Updated {list(updates.keys())} "
-                    f"for client {client_id} "
-                    f"| Saved to Google Sheets"
-                )
-                result = res or {}
-
-        # ── Send Email ─────────────────────────────────
-        elif action_type == "send_email":
-            to = action.get("recipient_email")
-
-            if client_id and not to:
-                client = await sheets_module.require_client(
-                    client_id
-                )
-                to = client.get("email")
-
-            if not to:
-                summary = "❌ No recipient email found"
-            else:
-                # Update email in CRM if new one provided
-                if (client_id and
-                        action.get("update_email_in_crm")):
-                    await sheets_module.update_client(
-                        client_id,
-                        {"email": to},
-                        changed_by="aria"
-                    )
-
-                from app.services.gmail import (
-                    send_email as gmail_send
-                )
-                res = await gmail_send(
-                    to=to,
-                    subject=action.get("subject", "Follow up"),
-                    body=action.get("body", ""),
-                    from_email=settings.gmail_address
-                )
-                if client_id:
-                    await sheets_module.log_activity(
-                        client_id, "EMAIL_SENT",
-                        f"ARIA sent email to {to}: "
-                        f"{action.get('subject')}",
-                        "SUCCESS", ""
-                    )
-                summary = (
-                    f"✅ Email sent to {to} "
-                    f"| Subject: {action.get('subject')} "
-                    f"| Message ID: {res.get('message_id')}"
-                )
-                result = res
-
-        # ── Create Draft ───────────────────────────────
-        elif action_type == "create_draft":
-            to = action.get("recipient_email")
-
-            if client_id and not to:
-                client = await sheets_module.require_client(
-                    client_id
-                )
-                to = client.get("email")
-
-            if not to:
-                summary = "❌ No recipient email found"
-            else:
-                from app.services.gmail import (
-                    create_draft as gmail_draft
-                )
-                res = await gmail_draft(
-                    to=to,
-                    subject=action.get("subject", "Follow up"),
-                    body=action.get("body", ""),
-                    from_email=settings.gmail_address
-                )
-                if client_id:
-                    await sheets_module.log_activity(
-                        client_id, "EMAIL_DRAFT_CREATED",
-                        f"ARIA created draft for {to}",
-                        "SUCCESS",
-                        res.get("gmail_drafts_url", "")
-                    )
-                summary = (
-                    f"✅ Draft saved to Gmail for {to} "
-                    f"| Subject: {action.get('subject')} "
-                    f"| Draft ID: {res.get('draft_id')}"
-                )
-                result = res
-
-        # ── Schedule Meeting ───────────────────────────
-        elif action_type == "schedule_meeting" and client_id:
-            from app.services.calendar import schedule_meeting
-            from datetime import datetime, timedelta
-
-            start = action.get("start_time", "")
-            end = action.get("end_time", "")
-
-            def parse_dt(s):
-                if not s:
-                    return None
-                s = str(s).strip()
-                formats = [
-                    "%Y-%m-%dT%H:%M:%S%z",
-                    "%Y-%m-%dT%H:%M:%S",
-                    "%Y-%m-%dT%H:%M",
-                    "%Y-%m-%d %H:%M:%S",
-                    "%Y-%m-%d %H:%M",
-                    "%Y-%m-%d"
-                ]
-                for fmt in formats:
-                    try:
-                        dt = datetime.strptime(s[:19], fmt[:len(fmt)])
-                        return dt.strftime(
-                            "%Y-%m-%dT%H:%M:%S-06:00"
-                        )
-                    except Exception:
-                        continue
-                return s
-
-            parsed_start = parse_dt(start)
-            parsed_end = parse_dt(end)
-
-            if parsed_start and not parsed_end:
-                try:
-                    dt = datetime.fromisoformat(
-                        parsed_start.replace("Z", "+00:00")
-                    )
-                    parsed_end = (
-                        dt + timedelta(hours=1)
-                    ).strftime("%Y-%m-%dT%H:%M:%S-06:00")
-                except Exception:
-                    parsed_end = parsed_start
-
-            if not parsed_start:
-                summary = (
-                    "❌ Could not parse meeting time. "
-                    "Please use format: 2026-06-20T14:00:00-06:00"
-                )
-            else:
-                client = await sheets_module.require_client(
-                    client_id
-                )
-                res = await schedule_meeting(
-                    client=client,
-                    title=action.get(
-                        "title",
-                        f"Meeting - "
-                        f"{client.get('company') or client.get('name')}"
-                    ),
-                    start_time=parsed_start,
-                    end_time=parsed_end,
-                    description=action.get("description", ""),
-                    location=action.get("location", ""),
-                    invite_client=action.get(
-                        "invite_client", False
-                    )
-                )
-                await sheets_module.log_activity(
-                    client_id,
-                    "MEETING_SCHEDULED",
-                    f"ARIA scheduled: {res.get('title')} "
-                    f"at {res.get('start_time')}",
-                    "SUCCESS",
-                    res.get("calendar_link", "")
-                )
-                summary = (
-                    f"✅ Meeting scheduled: {res.get('title')} "
-                    f"| Start: {res.get('start_time')} "
-                    f"| Calendar: {res.get('calendar_link', '')}"
-                )
-                result = res
-
-        # ── Score Client ───────────────────────────────
-        elif action_type == "score_client" and client_id:
-            from app.agent import score_single_client
-            client = await sheets_module.require_client(
-                client_id
-            )
-            score = await score_single_client(client)
-            summary = (
-                f"✅ Lead Score: {score.get('lead_score')}/10 "
-                f"| Churn Risk: {score.get('churn_risk')} "
-                f"| Close Probability: "
-                f"{score.get('estimated_close_probability')}% "
-                f"| Next Action: {score.get('best_next_action')}"
-            )
-            result = score
-
-        # ── Archive Client ─────────────────────────────
-        elif action_type == "archive_client" and client_id:
-            res = await sheets_module.archive_client(client_id)
-            summary = f"✅ Client {client_id} archived in CRM"
-            result = res
-
-        # ── Rollback Last ──────────────────────────────
-        elif action_type == "rollback_last" and client_id:
-            res = await sheets_module.rollback_last_change(
-                client_id
-            )
-            summary = (
-                f"✅ Rolled back: '{res.get('field')}' "
-                f"from '{res.get('rolled_back_from')}' "
-                f"to '{res.get('rolled_back_to')}'"
-            )
-            result = res
-
-        # ── Rollback Field ─────────────────────────────
-        elif action_type == "rollback_field" and client_id:
-            field = action.get("field")
-            if field:
-                res = await sheets_module.rollback_client_field(
-                    client_id, field
-                )
-                summary = (
-                    f"✅ Rolled back '{field}': "
-                    f"'{res.get('rolled_back_from')}' "
-                    f"→ '{res.get('rolled_back_to')}'"
-                )
-                result = res
-
-        # ── Update Follow-up ───────────────────────────
-        elif action_type == "update_followup" and client_id:
-            date = action.get("follow_up_date")
-            if date:
-                res = await sheets_module.update_next_followup(
-                    client_id, date
-                )
-                summary = (
-                    f"✅ Follow-up set to {date} "
-                    f"in Google Sheets"
-                )
-                result = res
-
-        else:
-            summary = ""
-
-    except Exception as e:
-        logger.error(f"Action execution failed: {e}")
-        summary = f"❌ Failed: {str(e)}"
-
-    return summary, result
+        raise HTTPException(500, error_msg)

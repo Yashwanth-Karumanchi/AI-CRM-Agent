@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARIA — Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/aria.css">
+</head>
+<body>
+<div class="app-layout">
+    <!-- Topbar -->
+    <div class="topbar">
+        <div class="topbar-brand">
+            <div class="topbar-logo">🤖</div>
+            <div>
+                <div class="topbar-title">ARIA</div>
+                <div class="topbar-subtitle">AI Relationship Intelligence</div>
+            </div>
+        </div>
+        <div class="topbar-right">
+            <div class="status-dot" id="connectionStatus">Connected</div>
+            <button class="btn btn-secondary btn-sm" onclick="logout()">Sign Out</button>
+        </div>
+    </div>
+
+    <div class="app-body">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-label">Main</div>
+                    <a href="/aria/dashboard" class="nav-item active" data-page="dashboard">
+                        <span class="nav-item-icon">📊</span>Dashboard
+                    </a>
+                    <a href="/aria/clients" class="nav-item" data-page="clients">
+                        <span class="nav-item-icon">👥</span>Clients
+                    </a>
+                    <a href="/aria/chat" class="nav-item" data-page="chat">
+                        <span class="nav-item-icon">💬</span>Chat with ARIA
+                    </a>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-label">Tools</div>
+                    <a href="/aria/calendar" class="nav-item" data-page="calendar">
+                        <span class="nav-item-icon">📅</span>Calendar
+                    </a>
+                    <a href="/aria/email" class="nav-item" data-page="email">
+                        <span class="nav-item-icon">📧</span>Email
+                    </a>
+                    <a href="/aria/reports" class="nav-item" data-page="reports">
+                        <span class="nav-item-icon">📄</span>Reports
+                    </a>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-label">Intelligence</div>
+                    <a href="/aria/intel" class="nav-item" data-page="intel">
+                        <span class="nav-item-icon">🧠</span>Intelligence
+                    </a>
+                    <a href="/aria/search" class="nav-item" data-page="search">
+                        <span class="nav-item-icon">🔍</span>Smart Search
+                    </a>
+                </div>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="sidebar-stats" id="sidebarStats">
+                    <div class="text-muted text-xs">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Content -->
+        <div class="main-content">
+            <div class="page">
+                <div class="page-header">
+                    <div>
+                        <div class="page-title">Dashboard</div>
+                        <div class="page-subtitle" id="dashboardDate"></div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button class="btn btn-secondary btn-sm" onclick="loadDashboard()">
+                            ↻ Refresh
+                        </button>
+                        <a href="/aria/clients" class="btn btn-primary btn-sm">
+                            + New Client
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Stats -->
+                <div class="stat-grid" id="statsGrid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="statTotal">—</div>
+                        <div class="stat-label">Total Clients</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value text-error" id="statHigh">—</div>
+                        <div class="stat-label">High Priority</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value text-success" id="statWon">—</div>
+                        <div class="stat-label">Won</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value text-accent" id="statFollowups">—</div>
+                        <div class="stat-label">Follow-ups Due</div>
+                    </div>
+                </div>
+
+                <!-- Pipeline + High Priority -->
+                <div class="grid-2 mb-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">Pipeline Stages</span>
+                        </div>
+                        <div class="card-body" id="pipelineStages">
+                            <div class="loading-overlay">
+                                <div class="loading-spinner"></div>
+                                Loading...
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">High Priority Clients</span>
+                            <a href="/aria/clients?priority=High" class="text-accent text-xs">View all →</a>
+                        </div>
+                        <div class="card-body" id="highPriorityList">
+                            <div class="loading-overlay">
+                                <div class="loading-spinner"></div>
+                                Loading...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Follow-ups -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <span class="card-title">⚠️ Follow-ups Due</span>
+                        <a href="/aria/clients" class="text-accent text-xs">View all →</a>
+                    </div>
+                    <div class="card-body" id="followupsList">
+                        <div class="loading-overlay">
+                            <div class="loading-spinner"></div>
+                            Loading...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Recent Activity</span>
+                    </div>
+                    <div id="recentActivity">
+                        <div class="loading-overlay">
+                            <div class="loading-spinner"></div>
+                            Loading...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="/static/js/api.js"></script>
+<script src="/static/js/utils.js"></script>
+<script src="/static/js/nav.js"></script>
+<script>
+function logout() { API.clear(); window.location.href = '/aria/'; }
+
+document.getElementById('dashboardDate').textContent =
+    new Date().toLocaleDateString('en-US', {
+        weekday: 'long', year: 'numeric',
+        month: 'long', day: 'numeric'
+    });
+
+async function loadDashboard() {
+    if (!Nav.init()) return;
+
+    try {
+        const [pipeline, followups, activities] = await Promise.all([
+            API.get('/pipeline'),
+            API.get('/followups/due'),
+            API.get('/activities?limit=10')
+        ]);
+
+        // Stats
+        document.getElementById('statTotal').textContent =
+            pipeline.total_clients || 0;
+        document.getElementById('statHigh').textContent =
+            pipeline.high_priority_pending_count || 0;
+        document.getElementById('statWon').textContent =
+            pipeline.won_count || 0;
+        document.getElementById('statFollowups').textContent =
+            followups.count || 0;
+
+        // Sidebar stats
+        Nav.loadSidebarStats();
+
+        // Pipeline stages
+        const counts = pipeline.stage_counts || {};
+        const total = pipeline.total_clients || 1;
+        document.getElementById('pipelineStages').innerHTML =
+            Object.entries(counts).map(([stage, count]) => `
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="text-secondary text-sm truncate"
+                        style="width:160px">${escapeHtml(stage)}</div>
+                    <div class="progress-bar" style="flex:1">
+                        <div class="progress-fill"
+                            style="width:${Math.round(count/total*100)}%">
+                        </div>
+                    </div>
+                    <div class="text-accent font-semibold text-sm"
+                        style="width:24px;text-align:right">${count}</div>
+                </div>
+            `).join('') || '<div class="empty-state"><div class="empty-state-desc">No data</div></div>';
+
+        // High priority
+        const hpClients = pipeline.high_priority_pending_clients || [];
+        document.getElementById('highPriorityList').innerHTML =
+            hpClients.length ? hpClients.map(c => `
+                <div class="flex items-center justify-between"
+                    style="padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer"
+                    onclick="window.location='/aria/clients'">
+                    <div>
+                        <div class="font-semibold text-sm">${escapeHtml(c.name)}</div>
+                        <div class="text-muted text-xs">${escapeHtml(c.company || '')} · ${escapeHtml(c.stage)}</div>
+                    </div>
+                    <div class="text-xs text-error">${c.next_follow_up || ''}</div>
+                </div>
+            `).join('') :
+            '<div class="empty-state"><div class="empty-state-icon">🎉</div><div class="empty-state-desc">No high priority clients pending</div></div>';
+
+        // Follow-ups
+        const fuClients = followups.clients || [];
+        document.getElementById('followupsList').innerHTML =
+            fuClients.length ? fuClients.map(c => `
+                <div class="flex items-center justify-between"
+                    style="padding:8px 0;border-bottom:1px solid var(--border)">
+                    <div>
+                        <div class="font-semibold text-sm">${escapeHtml(c.name)}</div>
+                        <div class="text-muted text-xs">${escapeHtml(c.company || '')}</div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-error text-xs">${escapeHtml(c.next_follow_up || '')}</span>
+                        ${priorityBadge(c.priority)}
+                    </div>
+                </div>
+            `).join('') :
+            '<div class="empty-state"><div class="empty-state-icon">✅</div><div class="empty-state-desc">No follow-ups due today!</div></div>';
+
+        // Recent activity
+        const acts = activities.activities || [];
+        document.getElementById('recentActivity').innerHTML =
+            acts.length ? `<div style="overflow-x:auto">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Client</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                            <th>Result</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${acts.map(a => `
+                            <tr>
+                                <td class="text-muted">${formatDateTime(a.timestamp)}</td>
+                                <td class="text-xs">${escapeHtml(a.client_id || '')}</td>
+                                <td><span class="badge badge-stage text-xs">${escapeHtml(a.type || '')}</span></td>
+                                <td class="text-secondary" style="max-width:300px">${escapeHtml(a.description || '')}</td>
+                                <td><span class="badge ${a.result === 'SUCCESS' ? 'badge-success' : 'badge-error'}">${escapeHtml(a.result || '')}</span></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>` :
+            '<div class="empty-state"><div class="empty-state-desc">No recent activity</div></div>';
+
+    } catch (e) {
+        Toast.error('Failed to load dashboard: ' + e.message);
+    }
+}
+
+loadDashboard();
+</script>
+</body>
+</html>
