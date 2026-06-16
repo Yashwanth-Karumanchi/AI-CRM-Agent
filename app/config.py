@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     gmail_address: str
 
     # LLM Config — change model here, affects everywhere
-    llm_model: str = "models/gemini-2.5-flash-lite"
+    llm_model: str = "models/gemini-3.1-flash-lite"
     llm_temperature: float = 0.3
     llm_max_tokens: int = 2048
 

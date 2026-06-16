@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARIA — Clients</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/aria.css">
+</head>
+<body>
+<div class="app-layout">
+    <div class="topbar">
+        <div class="topbar-brand">
+            <div class="topbar-logo">🤖</div>
+            <div>
+                <div class="topbar-title">ARIA</div>
+                <div class="topbar-subtitle">AI Relationship Intelligence</div>
+            </div>
+        </div>
+        <div class="topbar-right">
+            <div class="status-dot">Connected</div>
+            <button class="btn btn-secondary btn-sm" onclick="logout()">Sign Out</button>
+        </div>
+    </div>
+    <div class="app-body">
+        <div class="sidebar">
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-label">Main</div>
+                    <a href="/aria/dashboard" class="nav-item"><span class="nav-item-icon">📊</span>Dashboard</a>
+                    <a href="/aria/clients" class="nav-item active"><span class="nav-item-icon">👥</span>Clients</a>
+                    <a href="/aria/chat" class="nav-item"><span class="nav-item-icon">💬</span>Chat with ARIA</a>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-label">Tools</div>
+                    <a href="/aria/calendar" class="nav-item"><span class="nav-item-icon">📅</span>Calendar</a>
+                    <a href="/aria/email" class="nav-item"><span class="nav-item-icon">📧</span>Email</a>
+                    <a href="/aria/reports" class="nav-item"><span class="nav-item-icon">📄</span>Reports</a>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-label">Intelligence</div>
+                    <a href="/aria/intel" class="nav-item"><span class="nav-item-icon">🧠</span>Intelligence</a>
+                    <a href="/aria/search" class="nav-item"><span class="nav-item-icon">🔍</span>Smart Search</a>
+                </div>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="sidebar-stats" id="sidebarStats">
+                    <div class="text-muted text-xs">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="page">
+                <div class="page-header">
+                    <div>
+                        <div class="page-title">Clients</div>
+                        <div class="page-subtitle" id="clientCount">Loading...</div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button class="btn btn-secondary btn-sm" onclick="loadClients()">↻ Refresh</button>
+                        <button class="btn btn-secondary btn-sm" onclick="openModal('importModal')">⬆ Import Excel</button>
+                        <button class="btn btn-primary btn-sm" onclick="openModal('addClientModal')">+ New Client</button>
+                    </div>
+                </div>
+
+                <!-- Filters -->
+                <div class="card card-p mb-4">
+                    <div class="flex gap-3">
+                        <input id="searchInput" type="text" class="input" placeholder="Search by name, company, email..."
+                            oninput="filterClients()" style="flex:1">
+                        <select id="priorityFilter" class="input select" onchange="filterClients()" style="width:130px">
+                            <option value="">All Priorities</option>
+                            <option value="High">High</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Low">Low</option>
+                        </select>
+                        <select id="stageFilter" class="input select" onchange="filterClients()" style="width:180px">
+                            <option value="">All Stages</option>
+                            <option value="New">New</option>
+                            <option value="Contacted">Contacted</option>
+                            <option value="Consultation Scheduled">Consultation Scheduled</option>
+                            <option value="Proposal Sent">Proposal Sent</option>
+                            <option value="Won">Won</option>
+                            <option value="Lost">Lost</option>
+                        </select>
+                        <label class="flex items-center gap-2 text-secondary text-sm" style="white-space:nowrap">
+                            <input type="checkbox" id="showArchived" onchange="loadClients()">
+                            Show Archived
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Table -->
+                <div class="table-wrapper">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Client</th>
+                                <th>Company</th>
+                                <th>Service</th>
+                                <th>Priority</th>
+                                <th>Stage</th>
+                                <th>Follow-up</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="clientsTable">
+                            <tr><td colspan="7" class="text-center" style="padding:40px">
+                                <div class="loading-overlay"><div class="loading-spinner"></div>Loading clients...</div>
+                            </td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Client Modal -->
+<div class="modal-overlay" id="addClientModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <div class="modal-title">New Client</div>
+            <button class="btn btn-ghost btn-sm" onclick="closeModal('addClientModal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="input-row">
+                <div class="input-group">
+                    <label class="input-label">Name *</label>
+                    <input id="newName" class="input" placeholder="Full name">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">Email</label>
+                    <input id="newEmail" class="input" type="email" placeholder="email@company.com">
+                </div>
+            </div>
+            <div class="input-row">
+                <div class="input-group">
+                    <label class="input-label">Company</label>
+                    <input id="newCompany" class="input" placeholder="Company name">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">Phone</label>
+                    <input id="newPhone" class="input" placeholder="801-555-0000">
+                </div>
+            </div>
+            <div class="input-row">
+                <div class="input-group">
+                    <label class="input-label">Service</label>
+                    <input id="newService" class="input" placeholder="Service requested">
+                </div>
+                <div class="input-group">
+                    <label class="input-label">Priority</label>
+                    <select id="newPriority" class="input select">
+                        <option value="Medium">Medium</option>
+                        <option value="High">High</option>
+                        <option value="Low">Low</option>
+                    </select>
+                </div>
+            </div>
+            <div class="input-row">
+                <div class="input-group">
+                    <label class="input-label">Stage</label>
+                    <select id="newStage" class="input select">
+                        <option value="New">New</option>
+                        <option value="Contacted">Contacted</option>
+                        <option value="Consultation Scheduled">Consultation Scheduled</option>
+                        <option value="Proposal Sent">Proposal Sent</option>
+                        <option value="Won">Won</option>
+                        <option value="Lost">Lost</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label class="input-label">Follow-up Date</label>
+                    <input id="newFollowup" class="input" type="date">
+                </div>
+            </div>
+            <div class="input-group">
+                <label class="input-label">Notes</label>
+                <textarea id="newNotes" class="input textarea" rows="3" placeholder="Additional notes..."></textarea>
+            </div>
+            <div id="addClientError" class="alert alert-error hidden"></div>
+            <div id="addClientSuccess" class="alert alert-success hidden"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('addClientModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="createClient()">Create Client</button>
+        </div>
+    </div>
+</div>
+
+<!-- Client Detail Modal -->
+<div class="modal-overlay" id="clientDetailModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <div class="modal-title" id="detailTitle">Client Details</div>
+            <button class="btn btn-ghost btn-sm" onclick="closeModal('clientDetailModal')">✕</button>
+        </div>
+        <div class="modal-body" id="detailBody"></div>
+    </div>
+</div>
+
+<!-- Import Modal -->
+<div class="modal-overlay" id="importModal">
+    <div class="modal modal-md">
+        <div class="modal-header">
+            <div class="modal-title">Import Clients from Excel</div>
+            <button class="btn btn-ghost btn-sm" onclick="closeModal('importModal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="alert alert-info mb-3">
+                <span>ℹ️</span>
+                <div>
+                    <div class="font-semibold mb-1">Required Excel columns:</div>
+                    <div class="text-xs">Name, Email, Company, Phone, Service, Priority (High/Medium/Low), Stage, Notes</div>
+                </div>
+            </div>
+            <div class="input-group">
+                <label class="input-label">Select Excel File (.xlsx or .csv)</label>
+                <input id="importFile" type="file" accept=".xlsx,.csv"
+                    class="input" style="padding:8px">
+            </div>
+            <div id="importPreview" class="hidden"></div>
+            <div id="importResult" class="hidden"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('importModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="importClients()" id="importBtn">Import</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="/static/js/api.js"></script>
+<script src="/static/js/utils.js"></script>
+<script src="/static/js/nav.js"></script>
+<script>
+function logout() { API.clear(); window.location.href = '/aria/'; }
+Nav.init();
+
+let allClients = [];
+
+async function loadClients() {
+    const archived = document.getElementById('showArchived').checked;
+    try {
+        const res = await API.get(`/clients?limit=100&include_archived=${archived}`);
+        allClients = res.clients || [];
+        document.getElementById('clientCount').textContent =
+            `${allClients.length} clients`;
+        filterClients();
+        Nav.loadSidebarStats();
+    } catch (e) {
+        Toast.error('Failed to load clients: ' + e.message);
+    }
+}
+
+function filterClients() {
+    const query = document.getElementById('searchInput').value.toLowerCase();
+    const priority = document.getElementById('priorityFilter').value;
+    const stage = document.getElementById('stageFilter').value;
+
+    const filtered = allClients.filter(c => {
+        const text = [c.name, c.company, c.email, c.service, c.client_id]
+            .join(' ').toLowerCase();
+        return (!query || text.includes(query)) &&
+               (!priority || c.priority === priority) &&
+               (!stage || c.stage === stage);
+    });
+
+    renderTable(filtered);
+}
+
+function renderTable(clients) {
+    const tbody = document.getElementById('clientsTable');
+    if (!clients.length) {
+        tbody.innerHTML = `<tr><td colspan="7">
+            <div class="empty-state">
+                <div class="empty-state-icon">👥</div>
+                <div class="empty-state-title">No clients found</div>
+                <div class="empty-state-desc">Try adjusting your filters or add a new client</div>
+            </div>
+        </td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = clients.map(c => `
+        <tr onclick="viewClient('${c.client_id}')">
+            <td>
+                <div class="font-semibold">${escapeHtml(c.name)}</div>
+                <div class="text-muted text-xs">${escapeHtml(c.client_id)}</div>
+            </td>
+            <td class="text-secondary">${escapeHtml(c.company || '—')}</td>
+            <td class="text-secondary text-xs" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                ${escapeHtml(c.service || '—')}
+            </td>
+            <td>${priorityBadge(c.priority)}</td>
+            <td>${stageBadge(c.stage)}</td>
+            <td class="text-secondary text-xs">${c.next_follow_up || '—'}</td>
+            <td onclick="event.stopPropagation()">
+                <div class="flex gap-1">
+                    <button class="btn btn-ghost btn-sm btn-icon" onclick="quickScore('${c.client_id}')" title="Score">🎯</button>
+                    <button class="btn btn-ghost btn-sm btn-icon" onclick="quickEmail('${c.client_id}')" title="Email">📧</button>
+                    <button class="btn btn-ghost btn-sm btn-icon" onclick="quickReport('${c.client_id}')" title="Report">📄</button>
+                    <button class="btn btn-danger btn-sm btn-icon" onclick="archiveClient('${c.client_id}')" title="Archive">🗑</button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function viewClient(clientId) {
+    try {
+        const res = await API.get(`/clients/${clientId}`);
+        const c = res.client;
+        document.getElementById('detailTitle').textContent =
+            `${c.name} · ${c.client_id}`;
+        document.getElementById('detailBody').innerHTML = `
+            <div class="grid-2 mb-4">
+                <div><div class="input-label">Company</div><div>${escapeHtml(c.company || '—')}</div></div>
+                <div><div class="input-label">Email</div><div>${escapeHtml(c.email || '—')}</div></div>
+                <div><div class="input-label">Phone</div><div>${escapeHtml(c.phone || '—')}</div></div>
+                <div><div class="input-label">Service</div><div>${escapeHtml(c.service || '—')}</div></div>
+                <div><div class="input-label">Priority</div><div>${priorityBadge(c.priority)}</div></div>
+                <div>
+                    <div class="input-label">Stage</div>
+                    <select onchange="updateStage('${c.client_id}', this.value)" class="input select" style="width:auto">
+                        ${['New','Contacted','Consultation Scheduled','Proposal Sent','Won','Lost']
+                            .map(s => `<option ${s===c.stage?'selected':''} value="${s}">${s}</option>`).join('')}
+                    </select>
+                </div>
+                <div><div class="input-label">Next Follow-up</div><div>${c.next_follow_up || '—'}</div></div>
+                <div><div class="input-label">Created</div><div>${formatDate(c.created_at)}</div></div>
+            </div>
+            <div class="input-label">Notes</div>
+            <div class="text-secondary" style="margin-bottom:16px">${escapeHtml(c.notes || '—')}</div>
+            <div class="divider"></div>
+            <div class="flex flex-wrap gap-2 mt-3">
+                <button class="btn btn-secondary btn-sm" onclick="quickScore('${c.client_id}')">🎯 Score</button>
+                <button class="btn btn-secondary btn-sm" onclick="quickEmail('${c.client_id}')">📧 Email</button>
+                <button class="btn btn-secondary btn-sm" onclick="quickReport('${c.client_id}')">📄 Report</button>
+                <button class="btn btn-secondary btn-sm" onclick="window.location='/aria/calendar'">📅 Schedule</button>
+                <button class="btn btn-secondary btn-sm" onclick="viewAudit('${c.client_id}')">📋 Audit</button>
+                <button class="btn btn-secondary btn-sm" onclick="rollbackClient('${c.client_id}')">↩ Undo Last</button>
+                <button class="btn btn-danger btn-sm" onclick="archiveClient('${c.client_id}')">🗑 Archive</button>
+            </div>
+            <div id="detailResult" class="mt-3"></div>
+        `;
+        openModal('clientDetailModal');
+    } catch (e) {
+        Toast.error('Failed to load client');
+    }
+}
+
+async function updateStage(clientId, stage) {
+    try {
+        await API.put(`/clients/${clientId}/stage`, { stage });
+        Toast.success('Stage updated');
+        await loadClients();
+    } catch (e) {
+        Toast.error('Failed to update stage');
+    }
+}
+
+async function archiveClient(clientId) {
+    if (!confirm('Archive this client?')) return;
+    try {
+        await API.delete(`/clients/${clientId}`);
+        Toast.success('Client archived');
+        closeModal('clientDetailModal');
+        await loadClients();
+    } catch (e) {
+        Toast.error('Failed to archive');
+    }
+}
+
+async function quickScore(clientId) {
+    try {
+        Toast.info('Scoring client...');
+        const res = await API.get(`/clients/${clientId}/score`);
+        const s = res.score;
+        alert(`🎯 Lead Score: ${s.lead_score}/10\n⚠️ Churn Risk: ${s.churn_risk}\n📈 Close Probability: ${s.estimated_close_probability}%\n✅ Next Action: ${s.best_next_action}`);
+    } catch (e) {
+        Toast.error('Scoring failed');
+    }
+}
+
+async function quickEmail(clientId) {
+    window.location = `/aria/email?client_id=${clientId}`;
+}
+
+async function quickReport(clientId) {
+    try {
+        Toast.info('Generating report...');
+        const blob = await API.blob('POST', `/clients/${clientId}/report`);
+        downloadBlob(blob, `report_${clientId}.docx`);
+        Toast.success('Report downloaded');
+    } catch (e) {
+        Toast.error('Report failed');
+    }
+}
+
+async function viewAudit(clientId) {
+    try {
+        const res = await API.get(`/clients/${clientId}/audit`);
+        const history = res.history || [];
+        const el = document.getElementById('detailResult');
+        el.innerHTML = `
+            <div class="divider"></div>
+            <div class="card-title mb-2">Audit History (${history.length})</div>
+            ${history.length ? `
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead><tr><th>Time</th><th>Field</th><th>From</th><th>To</th></tr></thead>
+                    <tbody>
+                        ${history.map(h => `
+                            <tr>
+                                <td class="text-xs text-muted">${formatDateTime(h.timestamp)}</td>
+                                <td class="text-accent">${escapeHtml(h.field)}</td>
+                                <td class="text-secondary text-xs">${escapeHtml(h.old_value || '—')}</td>
+                                <td class="text-xs">${escapeHtml(h.new_value || '—')}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>` : '<div class="text-muted text-sm">No audit history yet</div>'}
+        `;
+    } catch (e) {
+        Toast.error('Failed to load audit history');
+    }
+}
+
+async function rollbackClient(clientId) {
+    if (!confirm('Undo the last change to this client?')) return;
+    try {
+        const res = await API.post(`/clients/${clientId}/rollback`);
+        Toast.success(`Rolled back: ${res.field} → ${res.rolled_back_to}`);
+        await loadClients();
+        closeModal('clientDetailModal');
+    } catch (e) {
+        Toast.error('Rollback failed: ' + e.message);
+    }
+}
+
+async function createClient() {
+    const name = document.getElementById('newName').value.trim();
+    if (!name) {
+        document.getElementById('addClientError').textContent = 'Name is required';
+        document.getElementById('addClientError').classList.remove('hidden');
+        return;
+    }
+    try {
+        const res = await API.post('/clients', {
+            name,
+            email: document.getElementById('newEmail').value.trim() || null,
+            company: document.getElementById('newCompany').value.trim() || null,
+            phone: document.getElementById('newPhone').value.trim() || null,
+            service: document.getElementById('newService').value.trim() || null,
+            priority: document.getElementById('newPriority').value,
+            stage: document.getElementById('newStage').value,
+            notes: document.getElementById('newNotes').value.trim() || null
+        });
+        if (res.ok) {
+            document.getElementById('addClientSuccess').textContent =
+                `Created! ID: ${res.client.client_id}`;
+            document.getElementById('addClientSuccess').classList.remove('hidden');
+            document.getElementById('addClientError').classList.add('hidden');
+            Toast.success('Client created!');
+            await loadClients();
+            setTimeout(() => closeModal('addClientModal'), 1500);
+        } else {
+            throw new Error(res.detail || 'Failed');
+        }
+    } catch (e) {
+        document.getElementById('addClientError').textContent = e.message;
+        document.getElementById('addClientError').classList.remove('hidden');
+    }
+}
+
+async function importClients() {
+    const file = document.getElementById('importFile').files[0];
+    if (!file) {
+        Toast.error('Please select a file');
+        return;
+    }
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const btn = document.getElementById('importBtn');
+    btn.disabled = true;
+    btn.textContent = 'Importing...';
+
+    try {
+        const settings_url = API.getBaseUrl();
+        const authHeader = localStorage.getItem('aria_auth');
+        const res = await fetch(`${settings_url}/clients/import`, {
+            method: 'POST',
+            headers: { 'Authorization': authHeader },
+            body: formData
+        });
+        const data = await res.json();
+        const resultEl = document.getElementById('importResult');
+        resultEl.classList.remove('hidden');
+        resultEl.innerHTML = `
+            <div class="alert ${data.ok ? 'alert-success' : 'alert-error'} mt-3">
+                <div>
+                    <div class="font-semibold">${data.ok ? '✅ Import Complete' : '❌ Import Failed'}</div>
+                    ${data.imported !== undefined ? `
+                        <div class="text-sm mt-1">✅ ${data.imported} imported successfully</div>
+                        <div class="text-sm">⚠️ ${data.skipped} skipped</div>
+                        <div class="text-sm">❌ ${data.failed} failed</div>
+                    ` : `<div>${data.detail || data.message}</div>`}
+                </div>
+            </div>
+            ${data.errors && data.errors.length ? `
+                <div class="mt-2">
+                    <div class="text-xs text-muted mb-1">Errors:</div>
+                    ${data.errors.slice(0,10).map(e =>
+                        `<div class="text-xs text-error">Row ${e.row}: ${e.error}</div>`
+                    ).join('')}
+                </div>
+            ` : ''}
+        `;
+        if (data.ok) {
+            Toast.success(`Imported ${data.imported} clients!`);
+            await loadClients();
+        }
+    } catch (e) {
+        Toast.error('Import failed: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Import';
+    }
+}
+
+loadClients();
+</script>
+</body>
+</html>
