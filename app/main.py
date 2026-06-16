@@ -3,6 +3,8 @@ from fastapi import (
     File, HTTPException, Query
 )
 
+import json
+
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
@@ -1534,73 +1536,50 @@ async def aria_chat(
     data: AgentChat,
     username: str = Depends(verify_credentials)
 ):
-    """
-    ARIA smart chat — understands natural language
-    and automatically calls the right CRM operations
-    """
     try:
-        clients = await sheets.get_all_clients(limit=1000)
-        pipeline = await sheets.get_pipeline_summary()
-
-        settings = get_settings()
         import google.genai as genai
-        model = genai.Client(
-            api_key=settings.gemini_api_key
-        )
+        settings = get_settings()
 
-        system_context = f"""
-        You are ARIA, an AI Relationship Intelligence Assistant
-        for a CRM system. You help manage clients, pipeline,
-        emails, meetings, and business intelligence.
+        pipeline = await sheets.get_pipeline_summary()
+        clients = await sheets.get_all_clients(limit=10)
 
-        Current Pipeline State:
-        - Total Clients: {pipeline.get('total_clients', 0)}
-        - Stage Counts: {pipeline.get('stage_counts', {})}
-        - High Priority Pending: {pipeline.get('high_priority_pending_count', 0)}
-
-        Recent Clients:
-        {json.dumps([
-            {{
+        client_list = [
+            {
                 "client_id": c.get("client_id"),
                 "name": c.get("name"),
                 "company": c.get("company"),
                 "stage": c.get("stage"),
                 "priority": c.get("priority")
-            }}
-            for c in clients[:10]
-        ], indent=2)}
+            }
+            for c in clients
+        ]
 
-        Respond conversationally and helpfully.
-        If the user asks to DO something (create client,
-        send email, schedule meeting, generate report),
-        tell them what you would do and what information
-        you need. Keep responses concise and actionable.
-        """
+        context = (
+            f"You are ARIA, an AI Relationship Intelligence Assistant.\n"
+            f"Current pipeline: {pipeline.get('total_clients', 0)} total clients, "
+            f"{pipeline.get('high_priority_pending_count', 0)} high priority pending.\n"
+            f"Stage counts: {json.dumps(pipeline.get('stage_counts', {}))}\n"
+            f"Recent clients: {json.dumps(client_list)}\n\n"
+            f"Respond conversationally and helpfully. Keep responses concise.\n\n"
+            f"User: {data.message}"
+        )
 
-        prompt = system_context + f"\n\nUser: {data.message}"
-
+        model = genai.Client(api_key=settings.gemini_api_key)
         response = model.models.generate_content(
             model="models/gemini-2.5-flash",
-            contents=prompt
+            contents=context
         )
 
         reply = response.text.strip()
 
-        await sheets.log_agent(
-            "ARIA_CHAT",
-            data.message,
-            reply
-        )
+        await sheets.log_agent("ARIA_CHAT", data.message, reply)
 
         return {
             "ok": True,
             "message": data.message,
-            "response": reply,
-            "pipeline_context": {
-                "total_clients": pipeline.get("total_clients", 0),
-                "high_priority": pipeline.get("high_priority_pending_count", 0)
-            }
+            "response": reply
         }
+
     except Exception as e:
         logger.error(f"ARIA chat failed: {e}")
         raise HTTPException(500, str(e))
