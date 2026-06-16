@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARIA — Bulk Import</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/aria.css">
+    <style>
+        .drop-zone {
+            border: 2px dashed var(--accent-border);
+            border-radius: var(--radius-lg);
+            padding: 48px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            background: var(--bg-secondary);
+        }
+        .drop-zone:hover,
+        .drop-zone.drag-over {
+            border-color: var(--accent-primary);
+            background: var(--accent-muted);
+        }
+        .drop-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+        .progress-step {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .step-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            flex-shrink: 0;
+        }
+        .step-pending {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+        }
+        .step-active {
+            background: var(--accent-muted);
+            border: 1px solid var(--accent-border);
+            color: var(--accent-primary);
+        }
+        .step-done {
+            background: var(--success-bg);
+            border: 1px solid rgba(76,175,130,0.3);
+            color: var(--success);
+        }
+        .step-error {
+            background: var(--error-bg);
+            border: 1px solid rgba(224,92,92,0.3);
+            color: var(--error);
+        }
+        .import-stat {
+            text-align: center;
+            padding: 20px;
+            border-radius: var(--radius-md);
+        }
+        .import-stat-value {
+            font-size: 36px;
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: 4px;
+        }
+        .import-stat-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+    </style>
+</head>
+<body>
+<div class="app-layout">
+    <div class="topbar">
+        <div class="topbar-brand">
+            <div class="topbar-logo">🤖</div>
+            <div>
+                <div class="topbar-title">ARIA</div>
+                <div class="topbar-subtitle">AI Relationship Intelligence</div>
+            </div>
+        </div>
+        <div class="topbar-right">
+            <div class="status-dot">Connected</div>
+            <button class="btn btn-secondary btn-sm" onclick="logout()">Sign Out</button>
+        </div>
+    </div>
+    <div class="app-body">
+        <div class="sidebar">
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-label">Main</div>
+                    <a href="/aria/dashboard" class="nav-item"><span class="nav-item-icon">📊</span>Dashboard</a>
+                    <a href="/aria/clients" class="nav-item"><span class="nav-item-icon">👥</span>Clients</a>
+                    <a href="/aria/chat" class="nav-item"><span class="nav-item-icon">💬</span>Chat with ARIA</a>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-label">Tools</div>
+                    <a href="/aria/calendar" class="nav-item"><span class="nav-item-icon">📅</span>Calendar</a>
+                    <a href="/aria/email" class="nav-item"><span class="nav-item-icon">📧</span>Email</a>
+                    <a href="/aria/reports" class="nav-item"><span class="nav-item-icon">📄</span>Reports</a>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-label">Intelligence</div>
+                    <a href="/aria/intel" class="nav-item"><span class="nav-item-icon">🧠</span>Intelligence</a>
+                    <a href="/aria/search" class="nav-item"><span class="nav-item-icon">🔍</span>Smart Search</a>
+                </div>
+                <div class="nav-section">
+                    <div class="nav-section-label">Import</div>
+                    <a href="/aria/import" class="nav-item active"><span class="nav-item-icon">📥</span>Bulk Import</a>
+                </div>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="sidebar-stats" id="sidebarStats">
+                    <div class="text-muted text-xs">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="page">
+                <div class="page-header">
+                    <div>
+                        <div class="page-title">Bulk Import</div>
+                        <div class="page-subtitle">
+                            Import clients from Excel or CSV files
+                        </div>
+                    </div>
+                    <a href="/aria/clients" class="btn btn-secondary btn-sm">
+                        ← Back to Clients
+                    </a>
+                </div>
+
+                <!-- Phase 1: Upload -->
+                <div id="phaseUpload">
+                    <!-- Drop Zone -->
+                    <div class="drop-zone" id="dropZone"
+                        onclick="document.getElementById('fileInput').click()"
+                        ondragover="handleDragOver(event)"
+                        ondragleave="handleDragLeave(event)"
+                        ondrop="handleDrop(event)">
+                        <div class="drop-icon">📥</div>
+                        <div class="font-semibold mb-2">
+                            Drop your Excel or CSV file here
+                        </div>
+                        <div class="text-muted text-sm mb-4">
+                            or click to browse
+                        </div>
+                        <div class="badge badge-stage">
+                            .xlsx · .xls · .csv supported
+                        </div>
+                    </div>
+                    <input type="file" id="fileInput"
+                        accept=".xlsx,.xls,.csv"
+                        style="display:none"
+                        onchange="handleFileSelect(event)">
+
+                    <!-- Format Guide -->
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <span class="card-title">📋 Expected Format</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="text-secondary text-sm mb-3">
+                                Your file should have these column headers
+                                (column order doesn't matter):
+                            </div>
+                            <div class="table-wrapper">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Column</th>
+                                            <th>Required</th>
+                                            <th>Example</th>
+                                            <th>Notes</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td class="font-semibold text-accent">Name</td>
+                                            <td><span class="badge badge-high">Required</span></td>
+                                            <td class="text-secondary">John Smith</td>
+                                            <td class="text-muted text-xs">Full name of client</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="font-semibold">Email</td>
+                                            <td><span class="badge badge-low">Optional</span></td>
+                                            <td class="text-secondary">john@company.com</td>
+                                            <td class="text-muted text-xs">Used for duplicate detection</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="font-semibold">Company</td>
+                                            <td><span class="badge badge-low">Optional</span></td>
+                                            <td class="text-secondary">Acme Corp</td>
+                                            <td class="text-muted text-xs"></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="font-semibold">Phone</td>
+                                            <td><span class="badge badge-low">Optional</span></td>
+                                            <td class="text-secondary">801-555-0100</td>
+                                            <td class="text-muted text-xs"></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="font-semibold">Service</td>
+                                            <td><span class="badge badge-low">Optional</span></td>
+                                            <td class="text-secondary">AI Automation</td>
+                                            <td class="text-muted text-xs"></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="font-semibold">Priority</td>
+                                            <td><span class="badge badge-low">Optional</span></td>
+                                            <td class="text-secondary">High</td>
+                                            <td class="text-muted text-xs">High / Medium / Low (default: Medium)</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="font-semibold">Stage</td>
+                                            <td><span class="badge badge-low">Optional</span></td>
+                                            <td class="text-secondary">New</td>
+                                            <td class="text-muted text-xs">New / Contacted / etc (default: New)</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="font-semibold">Notes</td>
+                                            <td><span class="badge badge-low">Optional</span></td>
+                                            <td class="text-secondary">Met at conference</td>
+                                            <td class="text-muted text-xs"></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Phase 2: Preview -->
+                <div id="phasePreview" class="hidden">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <div>
+                                <span class="card-title">📋 Preview</span>
+                                <span class="text-muted text-sm ml-2"
+                                    id="previewFilename"></span>
+                            </div>
+                            <button class="btn btn-ghost btn-sm"
+                                onclick="resetImport()">
+                                ← Change File
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <!-- Preview Stats -->
+                            <div class="flex gap-4 mb-4"
+                                style="flex-wrap:wrap">
+                                <div class="stat-card" style="flex:1;min-width:120px">
+                                    <div class="stat-value text-accent"
+                                        id="previewTotal">0</div>
+                                    <div class="stat-label">Valid Rows</div>
+                                </div>
+                                <div class="stat-card" style="flex:1;min-width:120px">
+                                    <div class="stat-value text-success"
+                                        id="previewCols">0</div>
+                                    <div class="stat-label">Columns Detected</div>
+                                </div>
+                                <div class="stat-card" style="flex:1;min-width:120px">
+                                    <div class="stat-value text-error"
+                                        id="previewErrors">0</div>
+                                    <div class="stat-label">Validation Errors</div>
+                                </div>
+                            </div>
+
+                            <!-- Detected Columns -->
+                            <div class="mb-3">
+                                <div class="input-label mb-1">Detected Columns</div>
+                                <div id="detectedCols" class="flex gap-2"
+                                    style="flex-wrap:wrap"></div>
+                            </div>
+
+                            <!-- Validation Errors -->
+                            <div id="validationErrorsSection" class="hidden mb-3">
+                                <div class="input-label mb-1 text-error">
+                                    Validation Errors
+                                </div>
+                                <div id="validationErrors"
+                                    class="alert alert-error text-xs"
+                                    style="max-height:120px;overflow-y:auto">
+                                </div>
+                            </div>
+
+                            <!-- Sample Data -->
+                            <div class="mb-4">
+                                <div class="input-label mb-2">
+                                    Sample Data (first 5 rows)
+                                </div>
+                                <div class="table-wrapper">
+                                    <table class="table" id="previewTable">
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Import Options -->
+                            <div class="flex items-center gap-3 mb-4">
+                                <input type="checkbox"
+                                    id="checkDuplicates"
+                                    checked>
+                                <label class="text-secondary text-sm">
+                                    Skip clients with duplicate emails
+                                    (recommended)
+                                </label>
+                            </div>
+
+                            <div class="flex gap-3">
+                                <button class="btn btn-secondary"
+                                    onclick="resetImport()">
+                                    Cancel
+                                </button>
+                                <button class="btn btn-primary btn-lg"
+                                    onclick="startImport()"
+                                    id="importBtn">
+                                    🚀 Import All Clients
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Phase 3: Importing -->
+                <div id="phaseImporting" class="hidden">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="text-center mb-4">
+                                <div style="font-size:48px;margin-bottom:12px">
+                                    ⚡
+                                </div>
+                                <div class="font-semibold mb-1">
+                                    Importing Clients...
+                                </div>
+                                <div class="text-muted text-sm">
+                                    Please wait, this may take a moment
+                                </div>
+                            </div>
+                            <div class="progress-bar" style="height:6px;margin-bottom:24px">
+                                <div class="progress-fill"
+                                    id="importProgress"
+                                    style="width:0%;transition:width 0.5s ease">
+                                </div>
+                            </div>
+                            <div id="importSteps">
+                                <div class="progress-step">
+                                    <div class="step-icon step-active"
+                                        id="step1Icon">1</div>
+                                    <div>
+                                        <div class="font-semibold text-sm">
+                                            Parsing file
+                                        </div>
+                                        <div class="text-muted text-xs">
+                                            Reading and validating rows
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="progress-step">
+                                    <div class="step-icon step-pending"
+                                        id="step2Icon">2</div>
+                                    <div>
+                                        <div class="font-semibold text-sm">
+                                            Checking duplicates
+                                        </div>
+                                        <div class="text-muted text-xs">
+                                            Comparing against existing CRM
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="progress-step">
+                                    <div class="step-icon step-pending"
+                                        id="step3Icon">3</div>
+                                    <div>
+                                        <div class="font-semibold text-sm">
+                                            Creating client records
+                                        </div>
+                                        <div class="text-muted text-xs">
+                                            Saving to Google Sheets
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="progress-step"
+                                    style="border-bottom:none">
+                                    <div class="step-icon step-pending"
+                                        id="step4Icon">4</div>
+                                    <div>
+                                        <div class="font-semibold text-sm">
+                                            Finalizing
+                                        </div>
+                                        <div class="text-muted text-xs">
+                                            Generating import report
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Phase 4: Results -->
+                <div id="phaseResults" class="hidden">
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">✅ Import Complete</span>
+                            <button class="btn btn-primary btn-sm"
+                                onclick="resetImport()">
+                                Import Another File
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <!-- Result Stats -->
+                            <div class="flex gap-4 mb-4"
+                                style="flex-wrap:wrap">
+                                <div class="import-stat"
+                                    style="flex:1;background:var(--success-bg);border:1px solid rgba(76,175,130,0.2)">
+                                    <div class="import-stat-value text-success"
+                                        id="resultImported">0</div>
+                                    <div class="import-stat-label text-success">
+                                        Imported
+                                    </div>
+                                </div>
+                                <div class="import-stat"
+                                    style="flex:1;background:var(--warning-bg);border:1px solid rgba(212,168,67,0.2)">
+                                    <div class="import-stat-value text-warning"
+                                        id="resultSkipped">0</div>
+                                    <div class="import-stat-label text-warning">
+                                        Skipped (Duplicates)
+                                    </div>
+                                </div>
+                                <div class="import-stat"
+                                    style="flex:1;background:var(--error-bg);border:1px solid rgba(224,92,92,0.2)">
+                                    <div class="import-stat-value text-error"
+                                        id="resultFailed">0</div>
+                                    <div class="import-stat-label text-error">
+                                        Failed
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Imported List -->
+                            <div id="importedList" class="mb-4"></div>
+
+                            <!-- Skipped List -->
+                            <div id="skippedList" class="mb-4"></div>
+
+                            <!-- Failed List -->
+                            <div id="failedList" class="mb-4"></div>
+
+                            <div class="flex gap-3">
+                                <a href="/aria/clients"
+                                    class="btn btn-primary">
+                                    View All Clients →
+                                </a>
+                                <button class="btn btn-secondary"
+                                    onclick="resetImport()">
+                                    Import Another File
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+<script src="/static/js/api.js"></script>
+<script src="/static/js/utils.js"></script>
+<script src="/static/js/nav.js"></script>
+<script>
+function logout() { API.clear(); window.location.href = '/aria/'; }
+Nav.init();
+
+let selectedFile = null;
+let previewData = null;
+
+// ── Drag & Drop ────────────────────────────────────────
+
+function handleDragOver(e) {
+    e.preventDefault();
+    document.getElementById('dropZone').classList.add('drag-over');
+}
+
+function handleDragLeave(e) {
+    document.getElementById('dropZone').classList.remove('drag-over');
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    document.getElementById('dropZone').classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) processFile(file);
+}
+
+function handleFileSelect(e) {
+    const file = e.target.files[0];
+    if (file) processFile(file);
+}
+
+// ── Phase Management ───────────────────────────────────
+
+function showPhase(phase) {
+    ['phaseUpload','phasePreview',
+     'phaseImporting','phaseResults'].forEach(id => {
+        document.getElementById(id).classList.add('hidden');
+    });
+    document.getElementById(phase).classList.remove('hidden');
+}
+
+function resetImport() {
+    selectedFile = null;
+    previewData = null;
+    document.getElementById('fileInput').value = '';
+    showPhase('phaseUpload');
+}
+
+// ── Preview ────────────────────────────────────────────
+
+async function processFile(file) {
+    const ext = file.name.toLowerCase().split('.').pop();
+    if (!['xlsx','xls','csv'].includes(ext)) {
+        Toast.error('File must be .xlsx, .xls, or .csv');
+        return;
+    }
+
+    selectedFile = file;
+    showPhase('phasePreview');
+
+    document.getElementById('previewFilename').textContent =
+        file.name;
+    document.getElementById('previewTotal').textContent = '...';
+    document.getElementById('previewCols').textContent = '...';
+    document.getElementById('previewErrors').textContent = '...';
+
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const authHeader = localStorage.getItem('aria_auth');
+        const baseUrl = localStorage.getItem('aria_url');
+
+        const res = await fetch(
+            `${baseUrl}/clients/import/preview`,
+            {
+                method: 'POST',
+                headers: { 'Authorization': authHeader },
+                body: formData
+            }
+        );
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            throw new Error(data.detail || 'Preview failed');
+        }
+
+        previewData = data;
+        renderPreview(data);
+
+    } catch(e) {
+        Toast.error('Preview failed: ' + e.message);
+        resetImport();
+    }
+}
+
+function renderPreview(data) {
+    document.getElementById('previewTotal').textContent =
+        data.total_valid_rows;
+    document.getElementById('previewCols').textContent =
+        data.detected_columns.length;
+    document.getElementById('previewErrors').textContent =
+        data.validation_errors.length;
+
+    // Detected columns
+    document.getElementById('detectedCols').innerHTML =
+        data.detected_columns.map(c =>
+            `<span class="badge badge-stage">${escapeHtml(c)}</span>`
+        ).join('');
+
+    // Validation errors
+    const errSection = document.getElementById(
+        'validationErrorsSection'
+    );
+    if (data.validation_errors.length) {
+        errSection.classList.remove('hidden');
+        document.getElementById('validationErrors').innerHTML =
+            data.validation_errors.map(e =>
+                `<div>⚠️ ${escapeHtml(e)}</div>`
+            ).join('');
+    } else {
+        errSection.classList.add('hidden');
+    }
+
+    // Sample table
+    const samples = data.sample_rows || [];
+    if (samples.length) {
+        const cols = Object.keys(samples[0]);
+        document.getElementById('previewTable').innerHTML = `
+            <thead><tr>
+                ${cols.map(c =>
+                    `<th>${escapeHtml(c)}</th>`
+                ).join('')}
+            </tr></thead>
+            <tbody>
+                ${samples.map(row => `
+                    <tr>
+                        ${cols.map(c =>
+                            `<td class="text-xs">${escapeHtml(String(row[c] || '—'))}</td>`
+                        ).join('')}
+                    </tr>
+                `).join('')}
+            </tbody>
+        `;
+    }
+
+    // Update button
+    document.getElementById('importBtn').textContent =
+        `🚀 Import ${data.total_valid_rows} Clients`;
+
+    if (!data.ready_to_import) {
+        document.getElementById('importBtn').disabled = true;
+        Toast.warning('No valid rows to import');
+    }
+}
+
+// ── Import ─────────────────────────────────────────────
+
+async function startImport() {
+    if (!selectedFile) return;
+
+    showPhase('phaseImporting');
+
+    // Animate steps
+    await animateStep('step1Icon', 300);
+    await animateStep('step2Icon', 800);
+    await animateStep('step3Icon', 500);
+
+    document.getElementById('importProgress').style.width = '70%';
+
+    try {
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+
+        const checkDups = document.getElementById(
+            'checkDuplicates'
+        ).checked;
+        const authHeader = localStorage.getItem('aria_auth');
+        const baseUrl = localStorage.getItem('aria_url');
+
+        const res = await fetch(
+            `${baseUrl}/clients/import?check_duplicates=${checkDups}`,
+            {
+                method: 'POST',
+                headers: { 'Authorization': authHeader },
+                body: formData
+            }
+        );
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            throw new Error(data.detail || 'Import failed');
+        }
+
+        document.getElementById('importProgress').style.width = '100%';
+        await animateStep('step4Icon', 0);
+        await sleep(500);
+
+        showResults(data);
+
+    } catch(e) {
+        Toast.error('Import failed: ' + e.message);
+        showPhase('phasePreview');
+    }
+}
+
+async function animateStep(iconId, delay) {
+    await sleep(delay);
+    const el = document.getElementById(iconId);
+    el.className = 'step-icon step-active';
+    el.textContent = '⟳';
+    await sleep(600);
+    el.className = 'step-icon step-done';
+    el.textContent = '✓';
+}
+
+function showResults(data) {
+    showPhase('phaseResults');
+
+    document.getElementById('resultImported').textContent =
+        data.imported;
+    document.getElementById('resultSkipped').textContent =
+        data.skipped;
+    document.getElementById('resultFailed').textContent =
+        data.failed;
+
+    // Imported
+    const imported = data.imported_clients || [];
+    document.getElementById('importedList').innerHTML =
+        imported.length ? `
+            <div class="input-label mb-2 text-success">
+                ✅ Successfully Imported (${imported.length})
+            </div>
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead><tr>
+                        <th>Name</th>
+                        <th>Client ID</th>
+                        <th>Email</th>
+                    </tr></thead>
+                    <tbody>
+                        ${imported.map(c => `
+                            <tr>
+                                <td class="font-semibold">
+                                    ${escapeHtml(c.name)}
+                                </td>
+                                <td class="text-accent text-xs">
+                                    ${escapeHtml(c.client_id)}
+                                </td>
+                                <td class="text-muted text-xs">
+                                    ${escapeHtml(c.email || '—')}
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        ` : '';
+
+    // Skipped
+    const skipped = data.skipped_clients || [];
+    document.getElementById('skippedList').innerHTML =
+        skipped.length ? `
+            <div class="input-label mb-2 text-warning mt-4">
+                ⚠️ Skipped - Duplicates (${skipped.length})
+            </div>
+            <div style="font-size:12px;color:var(--text-muted)">
+                ${skipped.map(c =>
+                    `<div style="padding:3px 0">
+                        ${escapeHtml(c.name)} — ${escapeHtml(c.email || '')}
+                        — ${escapeHtml(c.reason)}
+                    </div>`
+                ).join('')}
+            </div>
+        ` : '';
+
+    // Failed
+    const failed = data.failed_clients || [];
+    document.getElementById('failedList').innerHTML =
+        failed.length ? `
+            <div class="input-label mb-2 text-error mt-4">
+                ❌ Failed (${failed.length})
+            </div>
+            <div style="font-size:12px;color:var(--text-muted)">
+                ${failed.map(c =>
+                    `<div style="padding:3px 0">
+                        ${escapeHtml(c.name)} — ${escapeHtml(c.error)}
+                    </div>`
+                ).join('')}
+            </div>
+        ` : '';
+
+    Toast.success(
+        `Import complete! ${data.imported} clients added.`
+    );
+}
+</script>
+</body>
+</html>

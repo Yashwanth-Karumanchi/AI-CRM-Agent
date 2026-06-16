@@ -2,6 +2,7 @@ from fastapi import (
     FastAPI, Depends, UploadFile,
     File, HTTPException, Query
 )
+from app.services.importer import parse_excel, parse_csv
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -318,6 +319,10 @@ async def restore_client(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+@app.get("/aria/import", tags=["ARIA"])
+async def aria_import_page():
+    return FileResponse("app/static/pages/import.html")
+
 @app.delete("/clients/{client_id}/permanent", tags=["Clients"])
 async def delete_permanently(
     client_id: str,
@@ -355,6 +360,119 @@ async def bulk_archive(
     """Archive multiple clients"""
     result = await sheets.bulk_archive(data.client_ids)
     return {"ok": True, **result}
+
+# ── Bulk Import ────────────────────────────────────────
+
+@app.post("/clients/import/preview", tags=["Bulk Operations"])
+async def preview_import(
+    file: UploadFile = File(...),
+    username: str = Depends(verify_credentials)
+):
+    """
+    Preview an Excel or CSV file before importing.
+    Returns detected columns, row count, sample rows,
+    and any validation errors — without creating anything.
+    """
+    try:
+        from app.services.importer import parse_excel, parse_csv
+
+        file_bytes = await file.read()
+        filename = file.filename.lower()
+
+        if filename.endswith(".xlsx") or filename.endswith(".xls"):
+            rows, detected_cols, errors = parse_excel(file_bytes)
+        elif filename.endswith(".csv"):
+            rows, detected_cols, errors = parse_csv(file_bytes)
+        else:
+            raise HTTPException(
+                400,
+                "File must be .xlsx, .xls, or .csv"
+            )
+
+        return {
+            "ok": True,
+            "filename": file.filename,
+            "total_valid_rows": len(rows),
+            "detected_columns": detected_cols,
+            "validation_errors": errors,
+            "sample_rows": rows[:5],
+            "ready_to_import": len(rows) > 0
+        }
+
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        logger.error(f"Preview failed: {e}")
+        raise HTTPException(500, str(e))
+
+
+@app.post("/clients/import", tags=["Bulk Operations"])
+async def bulk_import(
+    file: UploadFile = File(...),
+    check_duplicates: bool = Query(True),
+    username: str = Depends(verify_credentials)
+):
+    """
+    Import clients from Excel or CSV file.
+    Validates all rows, skips duplicates,
+    and returns a detailed import report.
+    """
+    try:
+        from app.services.importer import (
+            parse_excel, parse_csv, bulk_import_clients
+        )
+
+        file_bytes = await file.read()
+        filename = file.filename.lower()
+
+        if filename.endswith(".xlsx") or filename.endswith(".xls"):
+            rows, detected_cols, parse_errors = \
+                parse_excel(file_bytes)
+        elif filename.endswith(".csv"):
+            rows, detected_cols, parse_errors = \
+                parse_csv(file_bytes)
+        else:
+            raise HTTPException(
+                400,
+                "File must be .xlsx, .xls, or .csv"
+            )
+
+        if not rows:
+            return {
+                "ok": False,
+                "message": "No valid rows to import",
+                "parse_errors": parse_errors
+            }
+
+        result = await bulk_import_clients(
+            rows, sheets,
+            check_duplicates=check_duplicates
+        )
+
+        await sheets.log_agent(
+            "BULK_IMPORT",
+            f"File: {file.filename}",
+            f"Imported: {result['imported']} | "
+            f"Skipped: {result['skipped']} | "
+            f"Failed: {result['failed']}"
+        )
+
+        return {
+            "ok": True,
+            "filename": file.filename,
+            "parse_errors": parse_errors,
+            **result
+        }
+
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        logger.error(f"Bulk import failed: {e}")
+        raise HTTPException(500, str(e))
 
 # ── Audit & Rollback ───────────────────────────────────
 
@@ -1723,7 +1841,14 @@ RESPOND WITH ONLY VALID JSON:
         else:
             instruction = (
                 f"Answer the user's question using CRM data. "
-                f"Be specific, helpful, concise."
+                f"Be specific, helpful, concise.\n\n"
+                f"IMPORTANT: If the user mentions bulk import, "
+                f"importing multiple clients, uploading an Excel "
+                f"file, or CSV file — tell them to go to the "
+                f"Bulk Import page at /aria/import. "
+                f"Explain they can drag and drop their Excel or "
+                f"CSV file and ARIA will import all clients at once "
+                f"with duplicate detection and a full report."
             )
 
         response_prompt = f"""You are ARIA, AI Relationship Intelligence Assistant.
@@ -1815,3 +1940,4 @@ ARIA:"""
                 "Rate limit reached. Please wait 30 seconds and try again."
             )
         raise HTTPException(500, error_msg)
+    
