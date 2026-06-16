@@ -1551,7 +1551,8 @@ async def aria_chat(
                 "stage": c.get("stage"),
                 "priority": c.get("priority"),
                 "email": c.get("email"),
-                "next_follow_up": c.get("next_follow_up")
+                "next_follow_up": c.get("next_follow_up"),
+                "notes": c.get("notes", "")
             }
             for c in clients
         ]
@@ -1577,48 +1578,220 @@ async def aria_chat(
                     f"({ctx.get('lastClientId', '')})\n"
                 )
 
-        system_context = (
-            f"You are ARIA, an AI Relationship Intelligence "
-            f"Assistant for a CRM system.\n\n"
-            f"CRITICAL INSTRUCTIONS:\n"
-            f"1. Remember EVERYTHING from the conversation history below\n"
-            f"2. When user says 'she/he/they/it/that client' — "
-            f"look at history to identify who they mean\n"
-            f"3. When user says 'send it/do it/update it' — "
-            f"look at history to understand what 'it' refers to\n"
-            f"4. Always maintain full context across the conversation\n"
-            f"5. Be conversational, concise, and actionable\n\n"
-            f"CURRENT CRM DATA:\n"
-            f"Total Clients: {pipeline.get('total_clients', 0)}\n"
-            f"High Priority Pending: "
-            f"{pipeline.get('high_priority_pending_count', 0)}\n"
-            f"Won: {pipeline.get('won_count', 0)}\n"
-            f"Lost: {pipeline.get('lost_count', 0)}\n"
-            f"Stage Counts: "
-            f"{json.dumps(pipeline.get('stage_counts', {}))}\n\n"
-            f"ALL CLIENTS:\n"
-            f"{json.dumps(client_list, indent=2)}\n"
+        # Step 1: Ask Gemini to detect intent and extract action
+        intent_prompt = (
+            f"You are ARIA, an AI CRM assistant. "
+            f"Analyze the user message and conversation history "
+            f"to determine if the user wants to perform a CRM action.\n\n"
+            f"AVAILABLE CLIENTS:\n"
+            f"{json.dumps(client_list, indent=2)}\n\n"
             f"{session_text}"
             f"{history_text}\n"
-            f"Current message from User: {data.message}\n\n"
-            f"ARIA response:"
+            f"Current user message: {data.message}\n\n"
+            f"Determine if this is an ACTION request or a QUESTION.\n\n"
+            f"If it is an ACTION, respond with ONLY this JSON:\n"
+            f"{{\n"
+            f'  "is_action": true,\n'
+            f'  "action_type": "send_email|create_draft|update_stage|update_client|schedule_meeting|create_client|archive_client|score_client|generate_report",\n'
+            f'  "client_id": "CL-XXXXXXXX or null",\n'
+            f'  "client_name": "name of client or null",\n'
+            f'  "email_subject": "subject if email action",\n'
+            f'  "email_body": "body if email action",\n'
+            f'  "new_stage": "stage if update_stage action",\n'
+            f'  "meeting_title": "title if schedule_meeting",\n'
+            f'  "meeting_start": "ISO datetime if schedule_meeting",\n'
+            f'  "meeting_end": "ISO datetime if schedule_meeting",\n'
+            f'  "reasoning": "why you think this is this action"\n'
+            f"}}\n\n"
+            f"If it is a QUESTION or conversation, respond with ONLY:\n"
+            f'{{"is_action": false}}\n\n'
+            f"Return ONLY valid JSON. No explanation."
         )
 
         model = genai.Client(api_key=settings.gemini_api_key)
-        response = model.models.generate_content(
+
+        intent_response = model.models.generate_content(
             model="models/gemini-2.5-flash",
-            contents=system_context
+            contents=intent_prompt
         )
 
-        reply = response.text.strip()
+        intent_text = intent_response.text.strip()
+        intent_text = intent_text.replace(
+            "```json", ""
+        ).replace("```", "").strip()
 
-        # Extract any client mentioned for session context
+        action_result = None
+        action_summary = ""
+
+        try:
+            intent = json.loads(intent_text)
+
+            if intent.get("is_action") and intent.get("client_id"):
+                action_type = intent.get("action_type")
+                client_id = intent.get("client_id")
+
+                # Execute the actual action
+                if action_type == "send_email":
+                    client = await sheets.require_client(client_id)
+                    recipient = client.get("email")
+                    if recipient:
+                        from app.services.gmail import send_email as gmail_send
+                        result = await gmail_send(
+                            to=recipient,
+                            subject=intent.get("email_subject", "Follow up"),
+                            body=intent.get("email_body", ""),
+                            from_email=settings.gmail_address
+                        )
+                        await sheets.log_activity(
+                            client_id, "EMAIL_SENT",
+                            f"ARIA sent email to {recipient}",
+                            "SUCCESS", ""
+                        )
+                        action_result = result
+                        action_summary = (
+                            f"✅ Email actually sent to "
+                            f"{recipient} | "
+                            f"Message ID: {result.get('message_id')}"
+                        )
+                    else:
+                        action_summary = (
+                            f"❌ Could not send — "
+                            f"client has no email address"
+                        )
+
+                elif action_type == "create_draft":
+                    client = await sheets.require_client(client_id)
+                    recipient = client.get("email")
+                    if recipient:
+                        from app.services.gmail import create_draft as gmail_draft
+                        result = await gmail_draft(
+                            to=recipient,
+                            subject=intent.get(
+                                "email_subject", "Follow up"
+                            ),
+                            body=intent.get("email_body", ""),
+                            from_email=settings.gmail_address
+                        )
+                        await sheets.log_activity(
+                            client_id, "EMAIL_DRAFT_CREATED",
+                            f"ARIA created draft for {recipient}",
+                            "SUCCESS",
+                            result.get("gmail_drafts_url", "")
+                        )
+                        action_result = result
+                        action_summary = (
+                            f"✅ Draft saved to Gmail | "
+                            f"Draft ID: {result.get('draft_id')}"
+                        )
+
+                elif action_type == "update_stage":
+                    new_stage = intent.get("new_stage")
+                    if new_stage:
+                        result = await sheets.update_stage(
+                            client_id, new_stage
+                        )
+                        action_result = result
+                        action_summary = (
+                            f"✅ Stage updated: "
+                            f"{result.get('previous_stage')} → "
+                            f"{result.get('new_stage')}"
+                        )
+
+                elif action_type == "update_client":
+                    updates = {}
+                    if intent.get("email_body"):
+                        updates["notes"] = intent.get("email_body")
+                    if updates:
+                        result = await sheets.update_client(
+                            client_id, updates
+                        )
+                        action_result = result
+                        action_summary = (
+                            f"✅ Client updated in Google Sheets"
+                        )
+
+                elif action_type == "score_client":
+                    client = await sheets.require_client(client_id)
+                    from app.agent import score_single_client
+                    score = await score_single_client(client)
+                    action_result = score
+                    action_summary = (
+                        f"✅ Scored: {score.get('lead_score')}/10 | "
+                        f"Churn: {score.get('churn_risk')} | "
+                        f"Close: {score.get('estimated_close_probability')}%"
+                    )
+
+                elif action_type == "archive_client":
+                    result = await sheets.archive_client(client_id)
+                    action_result = result
+                    action_summary = f"✅ Client archived"
+
+        except (json.JSONDecodeError, Exception) as e:
+            logger.error(f"Intent parsing failed: {e}")
+
+        # Step 2: Generate conversational response
+        response_prompt = (
+            f"You are ARIA, an AI CRM assistant.\n\n"
+            f"CRITICAL: Remember EVERYTHING from conversation history.\n"
+            f"When user refers to 'she/he/it/that' — use history.\n\n"
+            f"CURRENT CRM DATA:\n"
+            f"Total Clients: {pipeline.get('total_clients', 0)}\n"
+            f"High Priority: "
+            f"{pipeline.get('high_priority_pending_count', 0)}\n"
+            f"Won: {pipeline.get('won_count', 0)}\n"
+            f"Stage Counts: "
+            f"{json.dumps(pipeline.get('stage_counts', {}))}\n\n"
+            f"ALL CLIENTS:\n"
+            f"{json.dumps(client_list, indent=2)}\n\n"
+            f"{session_text}"
+            f"{history_text}\n"
+            f"Current user message: {data.message}\n\n"
+        )
+
+        if action_summary:
+            response_prompt += (
+                f"ACTION EXECUTED: {action_summary}\n"
+                f"Tell the user what was actually done. "
+                f"Be specific about what happened. "
+                f"Do NOT say you 'will' do something — "
+                f"it already happened.\n\n"
+            )
+        else:
+            response_prompt += (
+                f"Answer the user's question or help them. "
+                f"If they want to do something that needs "
+                f"more info, ask for it.\n\n"
+            )
+
+        response_prompt += "ARIA response:"
+
+        final_response = model.models.generate_content(
+            model="models/gemini-2.5-flash",
+            contents=response_prompt
+        )
+
+        reply = final_response.text.strip()
+
+        # Track context
         mentioned_client = None
         for c in clients:
-            if (c.get("name", "").lower() in data.message.lower() or
-                c.get("client_id", "").lower() in data.message.lower()):
+            if (
+                c.get("name", "").lower() in data.message.lower()
+                or c.get("client_id", "").lower()
+                in data.message.lower()
+            ):
                 mentioned_client = c
                 break
+
+        # Also check session context
+        if not mentioned_client and data.session_context:
+            last_id = data.session_context.get("lastClientId")
+            if last_id:
+                mentioned_client = next(
+                    (c for c in clients
+                     if c.get("client_id") == last_id),
+                    None
+                )
 
         context_update = {}
         if mentioned_client:
@@ -1634,6 +1807,7 @@ async def aria_chat(
             "ok": True,
             "message": data.message,
             "response": reply,
+            "action_executed": action_summary or None,
             "context": context_update
         }
 

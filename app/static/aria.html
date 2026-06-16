@@ -1273,23 +1273,43 @@ async function sendChatMessage() {
 
     input.value = '';
 
-    // Add to history before sending
     chatHistory.push({ role: 'user', content: message });
-
     addChatMessage('user', message);
-    const typingId = addTypingIndicator();
+
+    // Show thinking steps
+    const thinkingId = addThinkingIndicator();
 
     try {
+        // Step 1
+        updateThinking(thinkingId, '🧠 Reading your message...');
+        await sleep(600);
+
+        // Step 2
+        updateThinking(thinkingId, '🔍 Checking CRM context...');
+        await sleep(500);
+
+        // Step 3
+        updateThinking(thinkingId, '⚡ Detecting intent...');
+
         const res = await api('POST', '/aria/chat', {
             message: message,
             history: chatHistory.slice(0, -1),
             session_context: sessionContext
         });
 
-        removeTypingIndicator(typingId);
+        // Step 4 - show what action was taken if any
+        if (res.action_executed) {
+            updateThinking(thinkingId, '✅ ' + res.action_executed);
+            await sleep(800);
+        } else {
+            updateThinking(thinkingId, '💬 Composing response...');
+            await sleep(400);
+        }
+
+        removeThinking(thinkingId);
+
         const reply = res.response || 'Sorry, I could not process that.';
 
-        // Update session context if returned
         if (res.context && Object.keys(res.context).length > 0) {
             Object.assign(sessionContext, res.context);
         }
@@ -1298,9 +1318,62 @@ async function sendChatMessage() {
         addChatMessage('aria', reply);
 
     } catch (e) {
-        removeTypingIndicator(typingId);
+        removeThinking(thinkingId);
         chatHistory.pop();
         addChatMessage('aria', 'Connection error. Please try again.');
+    }
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function addThinkingIndicator() {
+    const id = 'thinking-' + Date.now();
+    const container = document.getElementById('chatMessages');
+    const div = document.createElement('div');
+    div.id = id;
+    div.className = 'flex gap-3 fade-in';
+    div.innerHTML = `
+        <div class="w-8 h-8 rounded-full bg-aria-500 flex items-center justify-center text-sm flex-shrink-0">🤖</div>
+        <div class="chat-bubble-aria rounded-2xl rounded-tl-sm px-4 py-3 max-w-lg min-w-48">
+            <div class="flex items-center gap-2">
+                <div class="flex gap-1">
+                    <div class="typing-dot w-2 h-2 bg-aria-500 rounded-full"></div>
+                    <div class="typing-dot w-2 h-2 bg-aria-500 rounded-full"></div>
+                    <div class="typing-dot w-2 h-2 bg-aria-500 rounded-full"></div>
+                </div>
+                <span id="${id}-text" class="text-xs text-gray-400 italic">
+                    🧠 Thinking...
+                </span>
+            </div>
+        </div>
+    `;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+    return id;
+}
+
+function updateThinking(id, message) {
+    const el = document.getElementById(id + '-text');
+    if (el) {
+        el.style.opacity = '0';
+        setTimeout(() => {
+            el.textContent = message;
+            el.style.transition = 'opacity 0.3s ease';
+            el.style.opacity = '1';
+        }, 150);
+        const container = document.getElementById('chatMessages');
+        container.scrollTop = container.scrollHeight;
+    }
+}
+
+function removeThinking(id) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.style.transition = 'opacity 0.2s ease';
+        el.style.opacity = '0';
+        setTimeout(() => el.remove(), 200);
     }
 }
 
