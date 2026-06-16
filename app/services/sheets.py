@@ -8,7 +8,30 @@ import asyncio
 from datetime import datetime, date
 from app.config import get_settings
 from app.logger import get_logger
+import time
 
+# ── Simple in-memory cache ─────────────────────────────
+_cache = {}
+_CACHE_TTL = 30  # seconds — adjust as needed
+
+
+def _cache_get(key: str):
+    entry = _cache.get(key)
+    if entry and time.time() - entry['ts'] < _CACHE_TTL:
+        return entry['data']
+    return None
+
+
+def _cache_set(key: str, data):
+    _cache[key] = {'data': data, 'ts': time.time()}
+
+
+def _cache_clear(key: str = None):
+    if key:
+        _cache.pop(key, None)
+    else:
+        _cache.clear()
+        
 logger = get_logger(__name__)
 
 SCOPES = [
@@ -135,9 +158,16 @@ def _row_to_client(row: dict, index: int) -> dict:
 
 def _get_all_records_sync() -> List[dict]:
     """Sync — must run in thread pool"""
+    cached = _cache_get('all_records')
+    if cached is not None:
+        return cached
+
     spreadsheet = _get_spreadsheet_sync()
     sheet = spreadsheet.worksheet("Clients")
-    return sheet.get_all_records()
+    records = sheet.get_all_records()
+
+    _cache_set('all_records', records)
+    return records
 
 
 async def _get_all_records() -> List[dict]:
@@ -174,7 +204,6 @@ def _create_client_sync(data: dict) -> dict:
     sheet = spreadsheet.worksheet("Clients")
     records = sheet.get_all_records()
 
-    # Duplicate check
     if data.get("email"):
         duplicate = next(
             (r for r in records
@@ -207,6 +236,7 @@ def _create_client_sync(data: dict) -> dict:
     ]
 
     sheet.append_row(row)
+    _cache_clear('all_records')  # ← invalidate cache
 
     return {
         "client_id": client_id,
@@ -240,10 +270,7 @@ async def create_client(data: dict) -> dict:
 # ── Batch Create (for bulk import) ─────────────────────
 
 def _batch_create_sync(rows: List[dict]) -> dict:
-    """
-    Insert all rows in ONE API call.
-    Sync — runs in thread pool.
-    """
+    """Single API call for all rows"""
     spreadsheet = _get_spreadsheet_sync()
     ws = spreadsheet.worksheet("Clients")
     headers = ws.row_values(1)
@@ -291,7 +318,6 @@ def _batch_create_sync(rows: List[dict]) -> dict:
                 "error": str(e)
             })
 
-    # Single API call for all rows
     if batch_rows:
         ws.append_rows(
             batch_rows,
@@ -300,6 +326,7 @@ def _batch_create_sync(rows: List[dict]) -> dict:
             table_range="A1"
         )
 
+    _cache_clear('all_records')  # ← invalidate cache
     return {"created": created, "failed": failed}
 
 
@@ -363,11 +390,13 @@ async def require_client(client_id: str) -> dict:
 
 # ── Update ─────────────────────────────────────────────
 
-def _update_cell_sync(row_number: int, col: int, value: str):
-    """Sync cell update — runs in thread pool"""
+def _update_cell_sync(
+    row_number: int, col: int, value: str
+):
     spreadsheet = _get_spreadsheet_sync()
     sheet = spreadsheet.worksheet("Clients")
     sheet.update_cell(row_number, col, value)
+    _cache_clear('all_records')  # ← invalidate cache
 
 
 async def update_client_field(
@@ -504,6 +533,7 @@ def _restore_client_sync(client_id: str) -> dict:
                     f"Client {client_id} is not archived"
                 )
             sheet.update_cell(i + 2, 14, "No")
+            _cache_clear('all_records')  # ← invalidate cache
             return {
                 "client_id": client_id,
                 "name": r.get("Name"),
@@ -536,6 +566,7 @@ def _delete_client_sync(client_id: str) -> dict:
     for i, r in enumerate(records):
         if r.get("Client ID") == client_id:
             sheet.delete_rows(i + 2)
+            _cache_clear('all_records')  # ← invalidate cache
             return {
                 "client_id": client_id,
                 "deleted": True,

@@ -29,7 +29,7 @@
                 🔴 Live Refresh
             </button>
             <button class="btn btn-secondary btn-sm"
-                onclick="stopAutoRefresh();loadClients()">
+                onclick="hardRefresh()">
                 ↻ Refresh
             </button>
             <a href="/aria/import" class="btn btn-secondary btn-sm">
@@ -238,6 +238,17 @@ Nav.init();
 
 let allClients = [];
 let showArchived = false;
+
+async function hardRefresh() {
+    // Clear server cache then reload
+    try {
+        await API.post('/cache/clear', {});
+    } catch(e) {
+        // ignore
+    }
+    await loadClients();
+    Toast.info('Clients refreshed');
+}
 
 async function loadClients() {
     try:

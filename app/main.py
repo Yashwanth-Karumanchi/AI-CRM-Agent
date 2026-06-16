@@ -150,6 +150,15 @@ async def startup():
     except Exception as e:
         logger.error(f"Sheets setup failed: {e}")
         logger.info("Continuing despite sheets error")
+        
+@app.post("/cache/clear", tags=["System"])
+async def clear_cache(
+    username: str = Depends(verify_credentials)
+):
+    """Force clear the server-side cache"""
+    from app.services.sheets import _cache_clear
+    _cache_clear()
+    return {"ok": True, "message": "Cache cleared"}
 
 # ── ARIA Pages ─────────────────────────────────────────
 
