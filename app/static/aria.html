@@ -1276,19 +1276,15 @@ async function sendChatMessage() {
     chatHistory.push({ role: 'user', content: message });
     addChatMessage('user', message);
 
-    // Show thinking steps
     const thinkingId = addThinkingIndicator();
 
     try {
-        // Step 1
         updateThinking(thinkingId, '🧠 Reading your message...');
-        await sleep(600);
-
-        // Step 2
-        updateThinking(thinkingId, '🔍 Checking CRM context...');
         await sleep(500);
 
-        // Step 3
+        updateThinking(thinkingId, '🔍 Checking CRM context...');
+        await sleep(400);
+
         updateThinking(thinkingId, '⚡ Detecting intent...');
 
         const res = await api('POST', '/aria/chat', {
@@ -1297,30 +1293,49 @@ async function sendChatMessage() {
             session_context: sessionContext
         });
 
-        // Step 4 - show what action was taken if any
-        if (res.action_executed) {
-            updateThinking(thinkingId, '✅ ' + res.action_executed);
+        if (res.needs_confirmation) {
+            updateThinking(
+                thinkingId,
+                '🤔 Preparing confirmation...'
+            );
+            await sleep(300);
+        } else if (res.action_executed) {
+            updateThinking(
+                thinkingId,
+                '✅ ' + res.action_executed
+            );
             await sleep(800);
         } else {
             updateThinking(thinkingId, '💬 Composing response...');
-            await sleep(400);
+            await sleep(300);
         }
 
         removeThinking(thinkingId);
 
-        const reply = res.response || 'Sorry, I could not process that.';
+        const reply = res.response ||
+            'Sorry, I could not process that.';
 
-        if (res.context && Object.keys(res.context).length > 0) {
+        if (res.context &&
+                Object.keys(res.context).length > 0) {
             Object.assign(sessionContext, res.context);
         }
 
         chatHistory.push({ role: 'assistant', content: reply });
-        addChatMessage('aria', reply);
+
+        // Show confirmation buttons if needed
+        if (res.needs_confirmation) {
+            addChatMessageWithConfirmation(reply);
+        } else {
+            addChatMessage('aria', reply);
+        }
 
     } catch (e) {
         removeThinking(thinkingId);
         chatHistory.pop();
-        addChatMessage('aria', 'Connection error. Please try again.');
+        addChatMessage(
+            'aria',
+            'Connection error. Please try again.'
+        );
     }
 }
 
@@ -1394,6 +1409,51 @@ function addChatMessage(role, text) {
 
     container.appendChild(div);
     container.scrollTop = container.scrollHeight;
+}
+
+function addChatMessageWithConfirmation(text) {
+    const container = document.getElementById('chatMessages');
+    const div = document.createElement('div');
+    div.className = 'flex gap-3 fade-in';
+    div.innerHTML = `
+        <div class="w-8 h-8 rounded-full bg-aria-500 flex items-center justify-center text-sm flex-shrink-0">🤖</div>
+        <div class="flex flex-col gap-2 max-w-lg">
+            <div class="chat-bubble-aria rounded-2xl rounded-tl-sm px-4 py-3">
+                <p class="text-sm text-gray-100 whitespace-pre-wrap">
+                    ${escapeHtml(text)}
+                </p>
+            </div>
+            <div class="flex gap-2 ml-1">
+                <button onclick="confirmAction()"
+                    class="px-4 py-1.5 bg-green-600 hover:bg-green-500 rounded-lg text-xs font-semibold transition">
+                    ✅ Yes, go ahead
+                </button>
+                <button onclick="cancelAction()"
+                    class="px-4 py-1.5 bg-red-900 hover:bg-red-800 rounded-lg text-xs font-semibold transition">
+                    ❌ Cancel
+                </button>
+            </div>
+        </div>
+    `;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+function confirmAction() {
+    // Remove confirmation buttons
+    document.querySelectorAll(
+        '.flex.gap-2.ml-1'
+    ).forEach(el => el.remove());
+    document.getElementById('chatInput').value = 'Yes, go ahead';
+    sendChatMessage();
+}
+
+function cancelAction() {
+    document.querySelectorAll(
+        '.flex.gap-2.ml-1'
+    ).forEach(el => el.remove());
+    document.getElementById('chatInput').value = 'Cancel';
+    sendChatMessage();
 }
 
 function addTypingIndicator() {

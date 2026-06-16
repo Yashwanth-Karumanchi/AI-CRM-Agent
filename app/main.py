@@ -1551,6 +1551,8 @@ async def aria_chat(
                 "stage": c.get("stage"),
                 "priority": c.get("priority"),
                 "email": c.get("email"),
+                "phone": c.get("phone"),
+                "service": c.get("service"),
                 "next_follow_up": c.get("next_follow_up"),
                 "notes": c.get("notes", "")
             }
@@ -1577,38 +1579,65 @@ async def aria_chat(
                     f"{ctx.get('lastClientName')} "
                     f"({ctx.get('lastClientId', '')})\n"
                 )
+            if ctx.get("pendingAction"):
+                session_text += (
+                    f"Pending action waiting for confirmation: "
+                    f"{json.dumps(ctx.get('pendingAction'))}\n"
+                )
 
-        # Step 1: Ask Gemini to detect intent and extract action
+        model = genai.Client(api_key=settings.gemini_api_key)
+
+        # ── Step 1: Detect intent ──────────────────────────
         intent_prompt = (
-            f"You are ARIA, an AI CRM assistant. "
-            f"Analyze the user message and conversation history "
-            f"to determine if the user wants to perform a CRM action.\n\n"
+            f"You are ARIA, an AI CRM assistant.\n"
+            f"Analyze the FULL conversation history and "
+            f"current message to determine what to do.\n\n"
+            f"RULES:\n"
+            f"1. If the user is CONFIRMING a pending action "
+            f"(says yes/confirm/do it/go ahead/sure/ok/yep), "
+            f"set is_confirmation=true\n"
+            f"2. If the user is CANCELLING "
+            f"(says no/cancel/stop/never mind), "
+            f"set is_cancellation=true\n"
+            f"3. If user wants a ROLLBACK "
+            f"(says undo/rollback/revert/go back), "
+            f"set action_type=rollback\n"
+            f"4. Always use email/info from user message "
+            f"over CRM data when user provides it\n"
+            f"5. If client not found by name, use closest match\n\n"
             f"AVAILABLE CLIENTS:\n"
             f"{json.dumps(client_list, indent=2)}\n\n"
             f"{session_text}"
             f"{history_text}\n"
             f"Current user message: {data.message}\n\n"
-            f"Determine if this is an ACTION request or a QUESTION.\n\n"
-            f"If it is an ACTION, respond with ONLY this JSON:\n"
+            f"Respond with ONLY this JSON:\n"
             f"{{\n"
-            f'  "is_action": true,\n'
-            f'  "action_type": "send_email|create_draft|update_stage|update_client|schedule_meeting|create_client|archive_client|score_client|generate_report",\n'
-            f'  "client_id": "CL-XXXXXXXX or null",\n'
+            f'  "is_action": true or false,\n'
+            f'  "is_confirmation": true or false,\n'
+            f'  "is_cancellation": true or false,\n'
+            f'  "action_type": "send_email|create_draft|'
+            f'update_stage|update_client|update_email|'
+            f'schedule_meeting|create_client|archive_client|'
+            f'score_client|generate_report|rollback_last|'
+            f'rollback_field|none",\n'
+            f'  "client_id": "exact CL-XXXXXXXX or null",\n'
             f'  "client_name": "name of client or null",\n'
+            f'  "recipient_email": "email from user message '
+            f'if provided, else CRM email",\n'
             f'  "email_subject": "subject if email action",\n'
-            f'  "email_body": "body if email action",\n'
-            f'  "new_stage": "stage if update_stage action",\n'
-            f'  "meeting_title": "title if schedule_meeting",\n'
-            f'  "meeting_start": "ISO datetime if schedule_meeting",\n'
-            f'  "meeting_end": "ISO datetime if schedule_meeting",\n'
-            f'  "reasoning": "why you think this is this action"\n'
+            f'  "email_body": "full email body if email",\n'
+            f'  "new_stage": "stage name if update_stage",\n'
+            f'  "rollback_field": "field name if rollback_field",\n'
+            f'  "update_fields": {{}},\n'
+            f'  "meeting_title": "title if meeting",\n'
+            f'  "meeting_start": "ISO datetime if meeting",\n'
+            f'  "meeting_end": "ISO datetime if meeting",\n'
+            f'  "confirmation_summary": '
+            f'"one line summary of what will be done",\n'
+            f'  "reasoning": "why you chose this action"\n'
             f"}}\n\n"
-            f"If it is a QUESTION or conversation, respond with ONLY:\n"
-            f'{{"is_action": false}}\n\n'
-            f"Return ONLY valid JSON. No explanation."
+            f"Return ONLY valid JSON. No markdown."
         )
-
-        model = genai.Client(api_key=settings.gemini_api_key)
 
         intent_response = model.models.generate_content(
             model="models/gemini-2.5-flash",
@@ -1622,123 +1651,91 @@ async def aria_chat(
 
         action_result = None
         action_summary = ""
+        pending_action = None
+        needs_confirmation = False
 
         try:
             intent = json.loads(intent_text)
+            action_type = intent.get("action_type", "none")
+            client_id = intent.get("client_id")
+            is_confirmation = intent.get("is_confirmation", False)
+            is_cancellation = intent.get("is_cancellation", False)
 
-            if intent.get("is_action") and intent.get("client_id"):
-                action_type = intent.get("action_type")
-                client_id = intent.get("client_id")
+            # ── Handle cancellation ────────────────────────
+            if is_cancellation:
+                action_summary = "cancelled"
+                pending_action = None
 
-                # Execute the actual action
-                if action_type == "send_email":
-                    client = await sheets.require_client(client_id)
-                    recipient = client.get("email")
-                    if recipient:
-                        from app.services.gmail import send_email as gmail_send
-                        result = await gmail_send(
-                            to=recipient,
-                            subject=intent.get("email_subject", "Follow up"),
-                            body=intent.get("email_body", ""),
-                            from_email=settings.gmail_address
-                        )
-                        await sheets.log_activity(
-                            client_id, "EMAIL_SENT",
-                            f"ARIA sent email to {recipient}",
-                            "SUCCESS", ""
-                        )
-                        action_result = result
-                        action_summary = (
-                            f"✅ Email actually sent to "
-                            f"{recipient} | "
-                            f"Message ID: {result.get('message_id')}"
-                        )
-                    else:
-                        action_summary = (
-                            f"❌ Could not send — "
-                            f"client has no email address"
-                        )
+            # ── Handle confirmation of pending action ──────
+            elif is_confirmation and data.session_context and \
+                    data.session_context.get("pendingAction"):
 
-                elif action_type == "create_draft":
-                    client = await sheets.require_client(client_id)
-                    recipient = client.get("email")
-                    if recipient:
-                        from app.services.gmail import create_draft as gmail_draft
-                        result = await gmail_draft(
-                            to=recipient,
-                            subject=intent.get(
-                                "email_subject", "Follow up"
-                            ),
-                            body=intent.get("email_body", ""),
-                            from_email=settings.gmail_address
-                        )
-                        await sheets.log_activity(
-                            client_id, "EMAIL_DRAFT_CREATED",
-                            f"ARIA created draft for {recipient}",
-                            "SUCCESS",
-                            result.get("gmail_drafts_url", "")
-                        )
-                        action_result = result
-                        action_summary = (
-                            f"✅ Draft saved to Gmail | "
-                            f"Draft ID: {result.get('draft_id')}"
-                        )
+                pending = data.session_context["pendingAction"]
+                action_type = pending.get("action_type")
+                client_id = pending.get("client_id")
+                intent = pending  # use pending action data
 
-                elif action_type == "update_stage":
-                    new_stage = intent.get("new_stage")
-                    if new_stage:
-                        result = await sheets.update_stage(
-                            client_id, new_stage
-                        )
-                        action_result = result
-                        action_summary = (
-                            f"✅ Stage updated: "
-                            f"{result.get('previous_stage')} → "
-                            f"{result.get('new_stage')}"
-                        )
-
-                elif action_type == "update_client":
-                    updates = {}
-                    if intent.get("email_body"):
-                        updates["notes"] = intent.get("email_body")
-                    if updates:
-                        result = await sheets.update_client(
-                            client_id, updates
-                        )
-                        action_result = result
-                        action_summary = (
-                            f"✅ Client updated in Google Sheets"
-                        )
-
-                elif action_type == "score_client":
-                    client = await sheets.require_client(client_id)
-                    from app.agent import score_single_client
-                    score = await score_single_client(client)
-                    action_result = score
-                    action_summary = (
-                        f"✅ Scored: {score.get('lead_score')}/10 | "
-                        f"Churn: {score.get('churn_risk')} | "
-                        f"Close: {score.get('estimated_close_probability')}%"
+                # Execute the confirmed action
+                action_summary, action_result = \
+                    await execute_aria_action(
+                        action_type, client_id,
+                        intent, settings, sheets
                     )
 
-                elif action_type == "archive_client":
-                    result = await sheets.archive_client(client_id)
-                    action_result = result
-                    action_summary = f"✅ Client archived"
+            # ── New action — ask for confirmation first ────
+            elif intent.get("is_action") and \
+                    action_type not in (
+                        "none", "score_client",
+                        "generate_report", "rollback_last",
+                        "rollback_field"
+                    ) and client_id:
+
+                # Store pending action for confirmation
+                pending_action = {
+                    "action_type": action_type,
+                    "client_id": client_id,
+                    "client_name": intent.get("client_name"),
+                    "recipient_email": intent.get("recipient_email"),
+                    "email_subject": intent.get("email_subject"),
+                    "email_body": intent.get("email_body"),
+                    "new_stage": intent.get("new_stage"),
+                    "update_fields": intent.get("update_fields", {}),
+                    "meeting_title": intent.get("meeting_title"),
+                    "meeting_start": intent.get("meeting_start"),
+                    "meeting_end": intent.get("meeting_end"),
+                    "rollback_field": intent.get("rollback_field"),
+                    "confirmation_summary": intent.get(
+                        "confirmation_summary", ""
+                    )
+                }
+                needs_confirmation = True
+
+            # ── Read-only actions — no confirmation needed ─
+            elif intent.get("is_action") and client_id and \
+                    action_type in (
+                        "score_client", "generate_report",
+                        "rollback_last", "rollback_field"
+                    ):
+                action_summary, action_result = \
+                    await execute_aria_action(
+                        action_type, client_id,
+                        intent, settings, sheets
+                    )
 
         except (json.JSONDecodeError, Exception) as e:
             logger.error(f"Intent parsing failed: {e}")
 
-        # Step 2: Generate conversational response
+        # ── Step 2: Generate response ──────────────────────
         response_prompt = (
             f"You are ARIA, an AI CRM assistant.\n\n"
-            f"CRITICAL: Remember EVERYTHING from conversation history.\n"
-            f"When user refers to 'she/he/it/that' — use history.\n\n"
-            f"CURRENT CRM DATA:\n"
+            f"CRITICAL: Remember EVERYTHING from history.\n"
+            f"Use history to understand context and references.\n\n"
+            f"CURRENT CRM STATE:\n"
             f"Total Clients: {pipeline.get('total_clients', 0)}\n"
             f"High Priority: "
             f"{pipeline.get('high_priority_pending_count', 0)}\n"
             f"Won: {pipeline.get('won_count', 0)}\n"
+            f"Lost: {pipeline.get('lost_count', 0)}\n"
             f"Stage Counts: "
             f"{json.dumps(pipeline.get('stage_counts', {}))}\n\n"
             f"ALL CLIENTS:\n"
@@ -1748,19 +1745,41 @@ async def aria_chat(
             f"Current user message: {data.message}\n\n"
         )
 
-        if action_summary:
+        if action_summary == "cancelled":
             response_prompt += (
-                f"ACTION EXECUTED: {action_summary}\n"
-                f"Tell the user what was actually done. "
-                f"Be specific about what happened. "
-                f"Do NOT say you 'will' do something — "
-                f"it already happened.\n\n"
+                f"The user cancelled the pending action. "
+                f"Acknowledge the cancellation politely "
+                f"and ask what else you can help with.\n\n"
+            )
+        elif needs_confirmation and pending_action:
+            summary = pending_action.get(
+                "confirmation_summary", ""
+            )
+            response_prompt += (
+                f"You identified this action to perform:\n"
+                f"{json.dumps(pending_action, indent=2)}\n\n"
+                f"DO NOT execute it yet. "
+                f"Ask the user to confirm with a clear summary "
+                f"of exactly what will happen. "
+                f"Show the key details (who, what, where). "
+                f"End with: 'Shall I go ahead?'\n\n"
+            )
+        elif action_summary:
+            response_prompt += (
+                f"ACTION COMPLETED: {action_summary}\n\n"
+                f"Tell the user exactly what was done. "
+                f"Be specific. Mention that it was updated "
+                f"in the CRM/Google Sheets/Gmail. "
+                f"Offer to do anything else.\n\n"
+                f"Also mention: they can say 'undo' or "
+                f"'rollback' to reverse this action.\n\n"
             )
         else:
             response_prompt += (
-                f"Answer the user's question or help them. "
-                f"If they want to do something that needs "
-                f"more info, ask for it.\n\n"
+                f"Answer conversationally. "
+                f"Use CRM data to give specific answers. "
+                f"If user wants to DO something, "
+                f"identify the action and client clearly.\n\n"
             )
 
         response_prompt += "ARIA response:"
@@ -1776,14 +1795,14 @@ async def aria_chat(
         mentioned_client = None
         for c in clients:
             if (
-                c.get("name", "").lower() in data.message.lower()
+                c.get("name", "").lower()
+                in data.message.lower()
                 or c.get("client_id", "").lower()
                 in data.message.lower()
             ):
                 mentioned_client = c
                 break
 
-        # Also check session context
         if not mentioned_client and data.session_context:
             last_id = data.session_context.get("lastClientId")
             if last_id:
@@ -1795,11 +1814,22 @@ async def aria_chat(
 
         context_update = {}
         if mentioned_client:
-            context_update = {
-                "lastClientId": mentioned_client.get("client_id"),
-                "lastClientName": mentioned_client.get("name"),
-                "lastAction": data.message
+            context_update["lastClientId"] = \
+                mentioned_client.get("client_id")
+            context_update["lastClientName"] = \
+                mentioned_client.get("name")
+            context_update["lastAction"] = data.message
+
+        if pending_action:
+            context_update["pendingAction"] = pending_action
+        elif action_summary and action_summary != "cancelled":
+            context_update["pendingAction"] = None
+            context_update["lastCompletedAction"] = {
+                "action_summary": action_summary,
+                "client_id": client_id if client_id else None
             }
+        elif action_summary == "cancelled":
+            context_update["pendingAction"] = None
 
         await sheets.log_agent("ARIA_CHAT", data.message, reply)
 
@@ -1807,10 +1837,217 @@ async def aria_chat(
             "ok": True,
             "message": data.message,
             "response": reply,
-            "action_executed": action_summary or None,
+            "action_executed": action_summary
+            if action_summary and action_summary != "cancelled"
+            else None,
+            "needs_confirmation": needs_confirmation,
             "context": context_update
         }
 
     except Exception as e:
         logger.error(f"ARIA chat failed: {e}")
         raise HTTPException(500, str(e))
+
+
+async def execute_aria_action(
+    action_type: str,
+    client_id: str,
+    intent: dict,
+    settings,
+    sheets_service
+) -> tuple:
+    """Execute a confirmed ARIA action and return summary + result"""
+    action_result = None
+    action_summary = ""
+
+    try:
+        if action_type in ("send_email", "create_draft"):
+            client = await sheets_service.require_client(client_id)
+            recipient = intent.get("recipient_email") or \
+                client.get("email")
+
+            # Update email in CRM if different
+            if (intent.get("recipient_email") and
+                    intent.get("recipient_email") !=
+                    client.get("email")):
+                await sheets_service.update_client(
+                    client_id,
+                    {"email": intent["recipient_email"]},
+                    changed_by="aria"
+                )
+                action_summary += (
+                    f"📝 Updated email to "
+                    f"{intent['recipient_email']} in CRM. "
+                )
+
+            if not recipient:
+                return "❌ No email address found", None
+
+            if action_type == "send_email":
+                from app.services.gmail import (
+                    send_email as gmail_send
+                )
+                result = await gmail_send(
+                    to=recipient,
+                    subject=intent.get(
+                        "email_subject", "Follow up"
+                    ),
+                    body=intent.get("email_body", ""),
+                    from_email=settings.gmail_address
+                )
+                await sheets_service.log_activity(
+                    client_id, "EMAIL_SENT",
+                    f"ARIA sent email to {recipient}",
+                    "SUCCESS", ""
+                )
+                action_result = result
+                action_summary += (
+                    f"✅ Email sent to {recipient} | "
+                    f"Message ID: {result.get('message_id')}"
+                )
+            else:
+                from app.services.gmail import (
+                    create_draft as gmail_draft
+                )
+                result = await gmail_draft(
+                    to=recipient,
+                    subject=intent.get(
+                        "email_subject", "Follow up"
+                    ),
+                    body=intent.get("email_body", ""),
+                    from_email=settings.gmail_address
+                )
+                await sheets_service.log_activity(
+                    client_id, "EMAIL_DRAFT_CREATED",
+                    f"ARIA created draft for {recipient}",
+                    "SUCCESS",
+                    result.get("gmail_drafts_url", "")
+                )
+                action_result = result
+                action_summary += (
+                    f"✅ Draft saved to Gmail for {recipient}"
+                )
+
+        elif action_type == "update_email":
+            new_email = intent.get("recipient_email")
+            if new_email:
+                await sheets_service.update_client(
+                    client_id,
+                    {"email": new_email},
+                    changed_by="aria"
+                )
+                action_summary = (
+                    f"✅ Email updated to {new_email} in CRM"
+                )
+
+        elif action_type == "update_stage":
+            new_stage = intent.get("new_stage")
+            if new_stage:
+                result = await sheets_service.update_stage(
+                    client_id, new_stage,
+                    changed_by="aria"
+                )
+                action_result = result
+                action_summary = (
+                    f"✅ Stage updated: "
+                    f"{result.get('previous_stage')} → "
+                    f"{result.get('new_stage')} "
+                    f"in Google Sheets"
+                )
+
+        elif action_type == "update_client":
+            updates = intent.get("update_fields", {})
+            if not updates and intent.get("recipient_email"):
+                updates["email"] = intent["recipient_email"]
+            if updates:
+                await sheets_service.update_client(
+                    client_id, updates,
+                    changed_by="aria"
+                )
+                action_summary = (
+                    f"✅ Updated {list(updates.keys())} "
+                    f"in Google Sheets"
+                )
+
+        elif action_type == "score_client":
+            client = await sheets_service.require_client(
+                client_id
+            )
+            from app.agent import score_single_client
+            score = await score_single_client(client)
+            action_result = score
+            action_summary = (
+                f"✅ Lead Score: "
+                f"{score.get('lead_score')}/10 | "
+                f"Churn Risk: {score.get('churn_risk')} | "
+                f"Close Probability: "
+                f"{score.get('estimated_close_probability')}%"
+            )
+
+        elif action_type == "archive_client":
+            result = await sheets_service.archive_client(
+                client_id
+            )
+            action_result = result
+            action_summary = (
+                f"✅ Client archived in Google Sheets"
+            )
+
+        elif action_type == "schedule_meeting":
+            client = await sheets_service.require_client(
+                client_id
+            )
+            from app.services.calendar import schedule_meeting
+            start = intent.get("meeting_start")
+            end = intent.get("meeting_end")
+            if start and end:
+                result = await schedule_meeting(
+                    client=client,
+                    title=intent.get("meeting_title"),
+                    start_time=start,
+                    end_time=end,
+                    invite_client=False
+                )
+                await sheets_service.log_activity(
+                    client_id,
+                    "MEETING_SCHEDULED",
+                    f"ARIA scheduled: {result.get('title')}",
+                    "SUCCESS",
+                    result.get("calendar_link", "")
+                )
+                action_result = result
+                action_summary = (
+                    f"✅ Meeting scheduled: "
+                    f"{result.get('title')} | "
+                    f"Start: {result.get('start_time')}"
+                )
+
+        elif action_type == "rollback_last":
+            result = await sheets_service.rollback_last_change(
+                client_id
+            )
+            action_result = result
+            action_summary = (
+                f"✅ Rolled back last change: "
+                f"'{result.get('field')}' "
+                f"from '{result.get('rolled_back_from')}' "
+                f"to '{result.get('rolled_back_to')}'"
+            )
+
+        elif action_type == "rollback_field":
+            field = intent.get("rollback_field")
+            if field:
+                result = await sheets_service.rollback_client_field(
+                    client_id, field
+                )
+                action_result = result
+                action_summary = (
+                    f"✅ Rolled back '{field}': "
+                    f"'{result.get('rolled_back_from')}' "
+                    f"→ '{result.get('rolled_back_to')}'"
+                )
+
+    except Exception as e:
+        action_summary = f"❌ Action failed: {str(e)}"
+
+    return action_summary, action_result
