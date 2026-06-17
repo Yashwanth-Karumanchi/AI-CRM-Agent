@@ -622,11 +622,7 @@ function addUserMessage(text, file) {
             </div>
             ` : ''}
             ${text ? `
-            <div class="chat-bubble user">
-                <div style="white-space:pre-wrap;line-height:1.65">
-                    ${escapeHtml(text)}
-                </div>
-            </div>
+            <div class="chat-bubble aria" style="white-space:pre-wrap;line-height:1.65">${escapeHtml(text)}</div>
             ` : ''}
         </div>
     `;
@@ -657,11 +653,7 @@ function addConfirmMessage(text) {
             </svg>
         </div>
         <div>
-            <div class="chat-bubble aria">
-                <div style="white-space:pre-wrap;line-height:1.65">
-                    ${escapeHtml(text)}
-                </div>
-            </div>
+            <div class="chat-bubble aria" style="white-space:pre-wrap;line-height:1.65">${escapeHtml(text)}</div>
             <div class="chat-confirm-buttons">
                 <button class="btn btn-success btn-sm"
                     onclick="confirm_action(this)">

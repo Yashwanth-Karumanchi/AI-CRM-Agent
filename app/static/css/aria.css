@@ -943,6 +943,7 @@ select {
 
 .chat-message.user {
     flex-direction: row-reverse;
+    align-items: flex-end;
 }
 
 @keyframes fade-up {
@@ -984,6 +985,8 @@ select {
     line-height: 1.65;
     border-radius: var(--radius-md);
     border: 1px solid var(--border);
+    width: fit-content;        /* ← shrinks to text */
+    word-break: break-word;    /* ← prevents overflow on long words */
 }
 
 .chat-bubble.aria {
