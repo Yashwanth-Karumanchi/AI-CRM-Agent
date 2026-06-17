@@ -2172,7 +2172,8 @@ async def execute_aria_action(
 @app.post("/aria/chat", tags=["ARIA"])
 @limiter.limit("20/minute")
 async def aria_chat(
-    data:     AgentChat,
+    request: StarletteRequest,
+    data: AgentChat,
     username: str = Depends(verify_credentials)
 ):
     """ARIA — AI CRM assistant with full action execution"""
