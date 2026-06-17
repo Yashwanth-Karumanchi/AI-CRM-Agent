@@ -1093,7 +1093,7 @@ async def rollback_last_change(client_id: str) -> dict:
 async def get_followups_due() -> List[dict]:
     """Get clients with overdue follow-ups"""
     today = date.today().isoformat()
-    clients = await get_all_clients(limit=None)
+    clients = await get_all_clients(limit=1000)
 
     return [
         c for c in clients
@@ -1107,7 +1107,7 @@ async def get_followups_due() -> List[dict]:
 
 async def get_pipeline_summary() -> dict:
     """Get aggregated pipeline statistics"""
-    clients = await get_all_clients(limit=None)
+    clients = await get_all_clients(limit=1000)
 
     stages = [
         "New", "Contacted",

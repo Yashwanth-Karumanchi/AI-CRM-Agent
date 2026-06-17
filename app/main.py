@@ -302,7 +302,7 @@ async def list_clients(
     client_id:        Optional[str]  = Query(None),
     email:            Optional[str]  = Query(None),
     include_archived: bool           = Query(False),
-    limit:            int            = Query(20, ge=1, le=10000),
+    limit:            int            = Query(20, ge=1, le=500),
     username:         str            = Depends(verify_credentials)
 ):
     """Search and filter clients"""
@@ -760,7 +760,7 @@ async def pipeline_report(
 ):
     """Download pipeline summary as Word document"""
     summary      = await sheets.get_pipeline_summary()
-    clients      = await sheets.get_all_clients(limit=None)
+    clients      = await sheets.get_all_clients(limit=1000)
     report_bytes = generate_pipeline_report(summary, clients)
     return Response(
         content=report_bytes,
@@ -1262,7 +1262,7 @@ async def score_pipeline_endpoint(
 ):
     """AI analyzes entire pipeline health"""
     try:
-        clients = await sheets.get_all_clients(limit=None)
+        clients = await sheets.get_all_clients(limit=1000)
         if not clients:
             raise HTTPException(400, "No clients in pipeline")
         analysis = await score_entire_pipeline(clients)
@@ -1284,7 +1284,7 @@ async def find_similar_clients_endpoint(
     """Find clients similar to a target"""
     try:
         target      = await sheets.require_client(client_id)
-        all_clients = await sheets.get_all_clients(limit=None)
+        all_clients = await sheets.get_all_clients(limit=1000)
         result      = await find_similar_clients(target, all_clients)
         return {
             "ok":          True,
@@ -1304,7 +1304,7 @@ async def daily_recommendations(
 ):
     """AI recommends who to follow up with today"""
     try:
-        clients = await sheets.get_all_clients(limit=None)
+        clients = await sheets.get_all_clients(limit=1000)
         if not clients:
             raise HTTPException(400, "No clients found")
         recommendations = await get_daily_recommendations(clients)
@@ -1326,7 +1326,7 @@ async def stale_clients(
     """Find clients with no activity for X days"""
     try:
         from datetime import datetime, timedelta
-        all_activities = await sheets.search_activities(limit=None)
+        all_activities = await sheets.search_activities(limit=1000)
         cutoff = (
             datetime.utcnow() - timedelta(days=days_inactive)
         ).isoformat()
@@ -1335,7 +1335,7 @@ async def stale_clients(
             for a in all_activities
             if a.get("timestamp", "") >= cutoff
         }
-        all_clients = await sheets.get_all_clients(limit=None)
+        all_clients = await sheets.get_all_clients(limit=1000)
         stale = [
             c for c in all_clients
             if c["client_id"] not in active_ids
@@ -1357,7 +1357,7 @@ async def pipeline_pattern_detection(
 ):
     """AI detects patterns across the pipeline"""
     try:
-        clients = await sheets.get_all_clients(limit=None)
+        clients = await sheets.get_all_clients(limit=1000)
         if not clients:
             raise HTTPException(400, "No clients to analyze")
         patterns = await pipeline_patterns(clients)
@@ -1377,7 +1377,7 @@ async def revenue_forecast_endpoint(
 ):
     """AI forecasts pipeline revenue"""
     try:
-        clients = await sheets.get_all_clients(limit=None)
+        clients = await sheets.get_all_clients(limit=1000)
         if not clients:
             raise HTTPException(400, "No clients to forecast")
         forecast = await forecast_revenue(clients)
@@ -1397,7 +1397,7 @@ async def win_loss_analysis_endpoint(
 ):
     """AI analyzes won and lost deals"""
     try:
-        clients = await sheets.get_all_clients(limit=None)
+        clients = await sheets.get_all_clients(limit=1000)
         won  = [c for c in clients if c.get("stage") == "Won"]
         lost = [c for c in clients if c.get("stage") == "Lost"]
         if not won and not lost:
@@ -1425,7 +1425,7 @@ async def natural_language_search_endpoint(
 ):
     """Search clients using natural language"""
     try:
-        clients = await sheets.get_all_clients(limit=None)
+        clients = await sheets.get_all_clients(limit=1000)
         if not clients:
             return {
                 "ok":             True,
@@ -1451,7 +1451,7 @@ async def smart_filter_endpoint(
 ):
     """Filter clients with natural language criteria"""
     try:
-        clients = await sheets.get_all_clients(limit=None)
+        clients = await sheets.get_all_clients(limit=1000)
         result  = await smart_filter(data.criteria, clients)
         asyncio.create_task(sheets.log_agent(
             "SMART_FILTER", data.criteria,
@@ -1627,8 +1627,8 @@ async def weekly_report(
 ):
     """Download weekly performance report"""
     try:
-        clients      = await sheets.get_all_clients(limit=None)
-        activities   = await sheets.search_activities(limit=None)
+        clients      = await sheets.get_all_clients(limit=1000)
+        activities   = await sheets.search_activities(limit=500)
         pipeline     = await sheets.get_pipeline_summary()
         report_bytes = generate_weekly_report(
             clients, activities, pipeline
@@ -1652,8 +1652,8 @@ async def monthly_report(
 ):
     """Download monthly pipeline report"""
     try:
-        clients      = await sheets.get_all_clients(limit=None)
-        activities   = await sheets.search_activities(limit=None)
+        clients      = await sheets.get_all_clients(limit=1000)
+        activities   = await sheets.search_activities(limit=1000)
         pipeline     = await sheets.get_pipeline_summary()
         report_bytes = generate_monthly_report(
             clients, activities, pipeline, month
@@ -1676,7 +1676,7 @@ async def acquisition_report(
 ):
     """Download client acquisition report"""
     try:
-        clients      = await sheets.get_all_clients(limit=None)
+        clients      = await sheets.get_all_clients(limit=1000)
         report_bytes = generate_client_acquisition_report(clients)
         return Response(
             content=report_bytes,
@@ -1696,7 +1696,7 @@ async def agent_activity_report(
 ):
     """Download agent activity report"""
     try:
-        activities   = await sheets.search_activities(limit=None)
+        activities   = await sheets.search_activities(limit=1000)
         spreadsheet  = sheets.get_spreadsheet()
 
         def _get_logs():
