@@ -15,8 +15,8 @@ async function loadClients() {
 
     try {
         const url = showArchived
-            ? '/clients?include_archived=true&limit=500'
-            : '/clients?limit=500';
+            ? '/clients?include_archived=true&limit=None'
+            : '/clients?limit=None';
         const res = await API.get(url);
         allClients = res.clients || [];
         document.getElementById('clientCount').textContent =
