@@ -2229,54 +2229,70 @@ async def aria_chat(
                 f"{ctx['lastCompletedAction']}\n"
             )
             
-        # ── Topic Firewall ─────────────────────────────
+        I can see both issues clearly now:
+Image 1 — "analyze it" passes fine (good, history check works)
+
+Image 2 — "give python code to reverse a string" is getting through because there's conversation history, so len(data.history) > 0 auto-passes it. The firewall is being bypassed by the very rule meant to fix it.
+The problem is the auto-pass logic is too broad. Having history doesn't mean the message is CRM-related.
+
+The real fix — smarter auto-pass
+Replace the entire firewall block with this:
+python        # ── Topic Firewall ─────────────────────────────
         msg_lower_fw = data.message.lower().strip()
 
-        # These always pass — no classification needed
+        # Only auto-pass messages that are clearly
+        # short follow-ups or explicit CRM keywords.
+        # Never auto-pass just because history exists —
+        # that's what allowed the Python question through.
+        _CONFIRM_WORDS = {
+            "yes", "no", "ok", "okay", "sure", "yep", "yup",
+            "go ahead", "do it", "confirm", "cancel", "stop",
+            "undo", "rollback", "revert", "restore", "proceed",
+            "yes go ahead", "never mind", "nevermind"
+        }
+
+        _CRM_KEYWORDS = {
+            "client", "lead", "contact", "prospect", "deal",
+            "pipeline", "stage", "follow up", "followup",
+            "email", "draft", "send mail", "send email",
+            "meeting", "schedule", "calendar", "appointment",
+            "report", "invoice", "contract", "proposal",
+            "score", "import", "export", "upload", "csv",
+            "excel", "delete", "archive", "restore", "create",
+            "update", "add client", "new client", "show me",
+            "list", "who", "which clients", "high priority",
+            "won", "lost", "revenue", "forecast", "analyze",
+            "analysis", "rollback", "undo delete", "generate"
+        }
+
         _auto_pass = (
-            # Very short messages are almost always
-            # follow-ups to ARIA's own questions
-            len(data.message.strip()) < 30
-            # Pending action in progress
+            # Exact confirmation / cancellation words
+            msg_lower_fw in _CONFIRM_WORDS
+            # Pending action — must let confirmation through
             or bool(ctx.get("pendingAction"))
-            # There's conversation history — it's a follow-up
-            or (data.history and len(data.history) > 0)
-            # Explicit CRM keywords
-            or any(kw in msg_lower_fw for kw in [
-                "client", "lead", "pipeline", "stage",
-                "email", "draft", "send", "meeting",
-                "schedule", "report", "invoice", "contract",
-                "proposal", "score", "follow", "import",
-                "undo", "rollback", "restore", "delete",
-                "create", "update", "add", "show", "list",
-                "yes", "no", "cancel", "confirm", "go ahead",
-                "generate", "download", "analyze", "search"
-            ])
+            # Contains explicit CRM keyword
+            or any(kw in msg_lower_fw for kw in _CRM_KEYWORDS)
         )
 
         if not _auto_pass:
             _guard_prompt = (
-                f"You are a topic classifier for a CRM assistant.\n"
-                f"Decide if this message is relevant to CRM use.\n\n"
-                f"ALLOWED topics:\n"
-                f"- Clients, leads, contacts, prospects\n"
-                f"- Pipeline, stages, follow-ups, deals\n"
-                f"- Emails, drafts, sending messages\n"
-                f"- Meetings, calendar, scheduling\n"
-                f"- Reports, analytics, revenue, forecasts\n"
-                f"- Contracts, invoices, proposals\n"
-                f"- Importing data, Excel, CSV files\n"
-                f"- Scoring, AI analysis of clients\n"
-                f"- Undo, rollback, restore actions\n"
-                f"- Greetings, asking what ARIA can do\n"
-                f"- Business advice related to any of the above\n\n"
-                f"BLOCKED topics:\n"
-                f"- Writing code, debugging, programming\n"
-                f"- General knowledge, trivia, history\n"
-                f"- Creative writing, stories, poems, jokes\n"
-                f"- Politics, news, sports, entertainment\n"
-                f"- Recipes, travel, personal life advice\n\n"
+                f"You are a strict topic classifier for a "
+                f"CRM business assistant.\n"
+                f"Is this message related to CRM, sales, "
+                f"clients, pipeline, email, meetings, or "
+                f"business operations?\n\n"
                 f"Message: \"{data.message}\"\n\n"
+                f"Blocked examples:\n"
+                f"- 'give python code to reverse a string'\n"
+                f"- 'write me a poem'\n"
+                f"- 'what is the capital of France'\n"
+                f"- 'explain quantum physics'\n\n"
+                f"Allowed examples:\n"
+                f"- 'give me a pipeline summary'\n"
+                f"- 'analyze it' (follow-up to CRM question)\n"
+                f"- 'generate it' (follow-up to CRM question)\n"
+                f"- 'send an email to Sarah'\n"
+                f"- 'who needs follow up today'\n\n"
                 f"Respond with ONLY one word: ALLOWED or BLOCKED"
             )
 
@@ -2288,9 +2304,9 @@ async def aria_chat(
                 return {
                     "ok":                 True,
                     "response":           (
-                        "I'm ARIA, your CRM assistant. "
-                        "I can help with clients, pipeline, "
-                        "emails, meetings, reports, and sales.\n\n"
+                        "I'm ARIA, your CRM assistant — I can only "
+                        "help with clients, pipeline, emails, "
+                        "meetings, reports, and sales.\n\n"
                         "What would you like to do?"
                     ),
                     "action_executed":    None,
