@@ -195,12 +195,5 @@
 <script src="/static/js/utils.js"></script>
 <script src="/static/js/nav.js"></script>
 <script src="/static/js/clients.js"></script>
-<script>
-// Wire up remaining modal close buttons (utils openModal/closeModal handles overlays)
-document.getElementById('closeAddClientModal').addEventListener('click', () => closeModal('addClientModal'));
-document.getElementById('cancelAddClientModal').addEventListener('click', () => closeModal('addClientModal'));
-document.getElementById('closeDetailModal').addEventListener('click', () => closeModal('clientDetailModal'));
-document.getElementById('retryBtn').addEventListener('click', loadClients);
-</script>
 </body>
 </html>

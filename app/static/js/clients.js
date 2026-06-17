@@ -430,5 +430,13 @@ document.getElementById('prevBtn')
         .addEventListener('click', () => changePage(-1));
 document.getElementById('nextBtn')
         .addEventListener('click', () => changePage(1));
+        document.getElementById('closeAddClientModal')
+    .addEventListener('click', () => closeModal('addClientModal'));
+document.getElementById('cancelAddClientModal')
+    .addEventListener('click', () => closeModal('addClientModal'));
+document.getElementById('closeDetailModal')
+    .addEventListener('click', () => closeModal('clientDetailModal'));
+document.getElementById('retryBtn')
+    .addEventListener('click', loadClients);
 
 loadClients();
