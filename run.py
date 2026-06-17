@@ -1,6 +1,4 @@
 import uvicorn
-from concurrent.futures import ThreadPoolExecutor
-import asyncio
 
 if __name__ == "__main__":
     uvicorn.run(
@@ -9,5 +7,6 @@ if __name__ == "__main__":
         port=10000,
         workers=1,
         loop="asyncio",
-        timeout_keep_alive=120
+        timeout_keep_alive=120,
+        log_level="info"
     )

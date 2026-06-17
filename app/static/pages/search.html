@@ -10,41 +10,93 @@
 </head>
 <body>
 <div class="app-layout">
+
+    <!-- Topbar -->
     <div class="topbar">
         <div class="topbar-brand">
-            <div class="topbar-logo">🤖</div>
-            <div><div class="topbar-title">ARIA</div>
-                <div class="topbar-subtitle">AI Relationship Intelligence</div></div>
+            <div class="topbar-logo">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"
+                     stroke="currentColor" stroke-width="1.5">
+                    <circle cx="10" cy="10" r="3"/>
+                    <path stroke-linecap="round"
+                        d="M10 2v2m0 12v2M2 10h2m12 0h2
+                           M4.93 4.93l1.41 1.41m7.32 7.32l1.41 1.41
+                           M4.93 15.07l1.41-1.41m7.32-7.32l1.41-1.41"/>
+                </svg>
+            </div>
+            <div>
+                <div class="topbar-title">ARIA</div>
+                <div class="topbar-subtitle">AI Relationship Intelligence</div>
+            </div>
         </div>
         <div class="topbar-right">
-            <div class="status-dot">Connected</div>
-            <button class="btn btn-secondary btn-sm" onclick="logout()">Sign Out</button>
+            <div class="status-badge">
+                <span class="status-badge-dot"></span>
+                Connected
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="Nav.logout()">
+                <svg width="15" height="15" viewBox="0 0 20 20" fill="none"
+                     stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3
+                           3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                </svg>
+                Sign Out
+            </button>
         </div>
     </div>
+
     <div class="app-body">
+
+        <!-- Sidebar -->
         <div class="sidebar">
             <nav class="sidebar-nav">
                 <div class="nav-section">
                     <div class="nav-section-label">Main</div>
-                    <a href="/aria/dashboard" class="nav-item"><span class="nav-item-icon">📊</span>Dashboard</a>
-                    <a href="/aria/clients" class="nav-item"><span class="nav-item-icon">👥</span>Clients</a>
-                    <a href="/aria/chat" class="nav-item"><span class="nav-item-icon">💬</span>Chat with ARIA</a>
+                    <a href="/aria/dashboard" class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="13" y="3" width="4" height="4" rx="1"/><rect x="13" y="10" width="4" height="7" rx="1"/><rect x="3" y="13" width="7" height="4" rx="1"/></svg>
+                        Dashboard
+                    </a>
+                    <a href="/aria/clients" class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20H7m10 0v-2a4 4 0 00-4-4H7a4 4 0 00-4 4v2m14-10a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                        Clients
+                    </a>
+                    <a href="/aria/chat" class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                        Chat with ARIA
+                    </a>
                 </div>
                 <div class="nav-section">
                     <div class="nav-section-label">Tools</div>
-                    <a href="/aria/calendar" class="nav-item"><span class="nav-item-icon">📅</span>Calendar</a>
-                    <a href="/aria/email" class="nav-item"><span class="nav-item-icon">📧</span>Email</a>
-                    <a href="/aria/reports" class="nav-item"><span class="nav-item-icon">📄</span>Reports</a>
+                    <a href="/aria/calendar" class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                        Calendar
+                    </a>
+                    <a href="/aria/email" class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                        Email
+                    </a>
+                    <a href="/aria/reports" class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        Reports
+                    </a>
                 </div>
                 <div class="nav-section">
                     <div class="nav-section-label">Intelligence</div>
-                    <a href="/aria/intel" class="nav-item"><span class="nav-item-icon">🧠</span>Intelligence</a>
-                    <a href="/aria/search" class="nav-item active"><span class="nav-item-icon">🔍</span>Smart Search</a>
+                    <a href="/aria/intel" class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path stroke-linecap="round" d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                        Intelligence
+                    </a>
+                    <a href="/aria/search" class="nav-item active">
+                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
+                        Smart Search
+                    </a>
                 </div>
                 <div class="nav-section">
-                    <div class="nav-section-label">Import</div>
+                    <div class="nav-section-label">Data</div>
                     <a href="/aria/import" class="nav-item">
-                        <span class="nav-item-icon">📥</span>Bulk Import
+                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        Bulk Import
                     </a>
                 </div>
             </nav>
@@ -55,36 +107,81 @@
             </div>
         </div>
 
+        <!-- Main -->
         <div class="main-content">
             <div class="page">
+
                 <div class="page-header">
                     <div>
-                        <div class="page-title">Smart Search</div>
-                        <div class="page-subtitle">
+                        <h1 class="page-title">Smart Search</h1>
+                        <p class="page-subtitle">
                             Natural language search powered by AI
-                        </div>
+                        </p>
                     </div>
                 </div>
 
-                <!-- NL Search -->
+                <!-- Natural Language Search -->
                 <div class="card mb-4">
                     <div class="card-header">
-                        <span class="card-title">🔍 Natural Language Search</span>
+                        <span class="card-title">Natural Language Search</span>
+                        <span class="text-xs text-muted">
+                            Describe what you're looking for
+                        </span>
                     </div>
                     <div class="card-body">
                         <div class="flex gap-3">
-                            <input id="nlInput" class="input"
-                                placeholder="e.g. high priority clients interested in AI automation"
-                                onkeydown="if(event.key==='Enter') runNLSearch()"
-                                style="flex:1">
-                            <button class="btn btn-primary" onclick="runNLSearch()">Search</button>
+                            <div class="input-with-icon flex-1">
+                                <svg class="input-icon" viewBox="0 0 20 20"
+                                     fill="none" stroke="currentColor"
+                                     stroke-width="1.5">
+                                    <circle cx="11" cy="11" r="8"/>
+                                    <path stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        d="M21 21l-4.35-4.35"/>
+                                </svg>
+                                <input id="nlInput"
+                                    class="input"
+                                    placeholder="e.g. high priority clients interested in AI automation"
+                                    onkeydown="if(event.key==='Enter') runNLSearch()"
+                                    aria-label="Natural language search">
+                            </div>
+                            <button class="btn btn-primary"
+                                onclick="runNLSearch()"
+                                id="nlSearchBtn">
+                                <svg width="15" height="15"
+                                     viewBox="0 0 20 20" fill="none"
+                                     stroke="currentColor" stroke-width="1.5">
+                                    <circle cx="11" cy="11" r="8"/>
+                                    <path stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        d="M21 21l-4.35-4.35"/>
+                                </svg>
+                                Search
+                            </button>
                         </div>
+
+                        <!-- Quick searches -->
                         <div class="flex gap-2 mt-3" style="flex-wrap:wrap">
-                            <button class="quick-action-btn" onclick="setNL('high priority clients not yet contacted')">High priority uncontacted</button>
-                            <button class="quick-action-btn" onclick="setNL('clients interested in AI automation')">AI automation clients</button>
-                            <button class="quick-action-btn" onclick="setNL('clients who need immediate follow up')">Need follow up</button>
-                            <button class="quick-action-btn" onclick="setNL('clients likely to close this month')">Likely to close</button>
-                            <button class="quick-action-btn" onclick="setNL('won deals this quarter')">Won deals</button>
+                            <button class="quick-action-btn"
+                                onclick="setNL('high priority clients not yet contacted')">
+                                High priority uncontacted
+                            </button>
+                            <button class="quick-action-btn"
+                                onclick="setNL('clients interested in AI automation')">
+                                AI automation
+                            </button>
+                            <button class="quick-action-btn"
+                                onclick="setNL('clients who need immediate follow up')">
+                                Need follow-up
+                            </button>
+                            <button class="quick-action-btn"
+                                onclick="setNL('clients likely to close this month')">
+                                Likely to close
+                            </button>
+                            <button class="quick-action-btn"
+                                onclick="setNL('won deals this quarter')">
+                                Won deals
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -92,49 +189,101 @@
                 <!-- Smart Filter -->
                 <div class="card mb-4">
                     <div class="card-header">
-                        <span class="card-title">🎯 Smart Filter</span>
+                        <span class="card-title">Smart Filter</span>
+                        <span class="text-xs text-muted">
+                            Complex criteria filtering
+                        </span>
                     </div>
                     <div class="card-body">
                         <div class="flex gap-3">
-                            <input id="filterInput" class="input"
-                                placeholder="e.g. clients stuck in proposal stage for too long"
-                                onkeydown="if(event.key==='Enter') runFilter()"
-                                style="flex:1">
-                            <button class="btn btn-primary" onclick="runFilter()">Filter</button>
+                            <div class="input-with-icon flex-1">
+                                <svg class="input-icon" viewBox="0 0 20 20"
+                                     fill="none" stroke="currentColor"
+                                     stroke-width="1.5">
+                                    <polygon stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+                                </svg>
+                                <input id="filterInput"
+                                    class="input"
+                                    placeholder="e.g. clients stuck in proposal stage for too long"
+                                    onkeydown="if(event.key==='Enter') runFilter()"
+                                    aria-label="Smart filter criteria">
+                            </div>
+                            <button class="btn btn-primary"
+                                onclick="runFilter()"
+                                id="filterBtn">
+                                <svg width="15" height="15"
+                                     viewBox="0 0 20 20" fill="none"
+                                     stroke="currentColor" stroke-width="1.5">
+                                    <polygon stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+                                </svg>
+                                Filter
+                            </button>
                         </div>
+
+                        <!-- Quick filters -->
                         <div class="flex gap-2 mt-3" style="flex-wrap:wrap">
-                            <button class="quick-action-btn" onclick="setFilter('clients with no activity in 2 weeks')">Inactive 2 weeks</button>
-                            <button class="quick-action-btn" onclick="setFilter('high value clients at risk of churning')">Churn risk</button>
-                            <button class="quick-action-btn" onclick="setFilter('clients in proposal stage')">In proposal stage</button>
-                            <button class="quick-action-btn" onclick="setFilter('new clients from this month')">New this month</button>
+                            <button class="quick-action-btn"
+                                onclick="setFilter('clients with no activity in 2 weeks')">
+                                Inactive 2 weeks
+                            </button>
+                            <button class="quick-action-btn"
+                                onclick="setFilter('high value clients at risk of churning')">
+                                Churn risk
+                            </button>
+                            <button class="quick-action-btn"
+                                onclick="setFilter('clients in proposal stage')">
+                                In proposal stage
+                            </button>
+                            <button class="quick-action-btn"
+                                onclick="setFilter('new clients added this month')">
+                                New this month
+                            </button>
+                            <button class="quick-action-btn"
+                                onclick="setFilter('overdue follow-ups high priority')">
+                                Overdue + high priority
+                            </button>
                         </div>
                     </div>
                 </div>
 
                 <!-- Results -->
                 <div id="searchResults" class="hidden">
-                    <div class="flex justify-between items-center mb-3">
-                        <div>
-                            <span class="font-semibold" id="resultsTitle"></span>
-                            <span class="text-muted text-sm ml-2" id="resultsCount"></span>
+
+                    <div class="flex items-center justify-between mb-3 gap-4">
+                        <div class="flex items-center gap-3">
+                            <span class="font-semibold text-primary"
+                                  id="resultsTitle"></span>
+                            <span class="badge badge-stage"
+                                  id="resultsCount"></span>
                         </div>
-                        <div class="text-muted text-xs" id="resultsInterpretation"></div>
+                        <div class="text-muted text-xs"
+                             id="resultsInterpretation"
+                             style="max-width:400px;text-align:right">
+                        </div>
                     </div>
+
                     <div id="resultsContent"></div>
+
                 </div>
+
             </div>
         </div>
     </div>
 </div>
 
 <div class="toast-container" id="toastContainer"></div>
+
 <script src="/static/js/api.js"></script>
 <script src="/static/js/utils.js"></script>
 <script src="/static/js/nav.js"></script>
 <script>
-function logout() { API.clear(); window.location.href = '/aria/'; }
 Nav.init();
 
+// ── Helpers ────────────────────────────────────────────
 function setNL(q) {
     document.getElementById('nlInput').value = q;
     runNLSearch();
@@ -145,74 +294,51 @@ function setFilter(q) {
     runFilter();
 }
 
-async function runNLSearch() {
-    const query = document.getElementById('nlInput').value.trim();
-    if (!query) return;
-
-    showLoading('Natural Language Search', query);
-
-    try {
-        const res = await API.post('/search', { query });
-        showResults(
-            `Search: "${query}"`,
-            res.matched_clients || [],
-            res.total_matches || 0,
-            res.search_interpretation || ''
-        );
-    } catch(e) {
-        Toast.error('Search failed: ' + e.message);
-        hideResults();
-    }
-}
-
-async function runFilter() {
-    const criteria = document.getElementById('filterInput').value.trim();
-    if (!criteria) return;
-
-    showLoading('Smart Filter', criteria);
-
-    try {
-        const res = await API.post('/search/filter', { criteria });
-        showResults(
-            `Filter: "${criteria}"`,
-            res.matched_clients || [],
-            res.total_matches || 0,
-            res.criteria_interpretation || ''
-        );
-    } catch(e) {
-        Toast.error('Filter failed: ' + e.message);
-        hideResults();
-    }
-}
-
-function showLoading(type, query) {
-    document.getElementById('searchResults').classList.remove('hidden');
-    document.getElementById('resultsTitle').textContent = `${type}...`;
+function showSearchLoading(label) {
+    const results = document.getElementById('searchResults');
+    document.getElementById('resultsTitle').textContent = label;
     document.getElementById('resultsCount').textContent = '';
     document.getElementById('resultsInterpretation').textContent = '';
-    document.getElementById('resultsContent').innerHTML =
-        '<div class="loading-overlay"><div class="loading-spinner"></div>AI is searching...</div>';
-}
-
-function hideResults() {
-    document.getElementById('searchResults').classList.add('hidden');
+    document.getElementById('resultsContent').innerHTML = `
+        <div class="loading-overlay">
+            <div class="loading-spinner"></div>
+            AI is searching...
+        </div>
+    `;
+    results.classList.remove('hidden');
 }
 
 function showResults(title, clients, count, interpretation) {
     document.getElementById('resultsTitle').textContent = title;
-    document.getElementById('resultsCount').textContent = `${count} matches`;
+    document.getElementById('resultsCount').textContent =
+        `${count} match${count !== 1 ? 'es' : ''}`;
     document.getElementById('resultsInterpretation').textContent =
-        interpretation ? `AI interpreted as: ${interpretation}` : '';
+        interpretation
+            ? `Interpreted as: ${interpretation}`
+            : '';
 
     const container = document.getElementById('resultsContent');
 
     if (!clients.length) {
         container.innerHTML = `
-            <div class="empty-state">
-                <div class="empty-state-icon">🔍</div>
-                <div class="empty-state-title">No matches found</div>
-                <div class="empty-state-desc">Try rephrasing your search query</div>
-            </div>`;
+            <div class="card">
+                <div class="empty-state">
+                    <div class="empty-state-icon">
+                        <svg viewBox="0 0 20 20" fill="none"
+                             stroke="currentColor" stroke-width="1.5">
+                            <circle cx="11" cy="11" r="8"/>
+                            <path stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="M21 21l-4.35-4.35"/>
+                        </svg>
+                    </div>
+                    <div class="empty-state-title">No matches found</div>
+                    <div class="empty-state-desc">
+                        Try rephrasing your search, or use different keywords
+                    </div>
+                </div>
+            </div>
+        `;
         return;
     }
 
@@ -231,16 +357,30 @@ function showResults(title, clients, count, interpretation) {
                 </thead>
                 <tbody>
                     ${clients.map(c => `
-                        <tr onclick="window.location='/aria/clients'">
+                        <tr onclick="window.location='/aria/clients'"
+                            title="View in Clients">
                             <td>
-                                <div class="font-semibold">${escapeHtml(c.name)}</div>
-                                <div class="text-muted text-xs">${escapeHtml(c.client_id)}</div>
+                                <div class="font-semibold">
+                                    ${escapeHtml(c.name || '')}
+                                </div>
+                                <div class="text-muted text-xs mt-1">
+                                    ${escapeHtml(c.client_id || '')}
+                                </div>
                             </td>
-                            <td>${escapeHtml(c.company || '—')}</td>
-                            <td class="text-xs">${escapeHtml(c.service || '—')}</td>
+                            <td class="text-secondary">
+                                ${escapeHtml(c.company || '—')}
+                            </td>
+                            <td class="text-xs text-secondary"
+                                style="max-width:140px">
+                                <div class="truncate">
+                                    ${escapeHtml(c.service || '—')}
+                                </div>
+                            </td>
                             <td>${priorityBadge(c.priority)}</td>
                             <td>${stageBadge(c.stage)}</td>
-                            <td class="text-xs text-muted">${c.next_follow_up || '—'}</td>
+                            <td class="text-xs text-muted">
+                                ${c.next_follow_up || '—'}
+                            </td>
                         </tr>
                     `).join('')}
                 </tbody>
@@ -248,7 +388,83 @@ function showResults(title, clients, count, interpretation) {
         </div>
     `;
 
-    Toast.success(`Found ${count} clients`);
+    Toast.success(`Found ${count} client${count !== 1 ? 's' : ''}`);
+}
+
+// ── Natural Language Search ────────────────────────────
+async function runNLSearch() {
+    const query = document.getElementById('nlInput').value.trim();
+    if (!query) {
+        Toast.error('Please enter a search query');
+        document.getElementById('nlInput').focus();
+        return;
+    }
+
+    const btn = document.getElementById('nlSearchBtn');
+    setLoading(btn, true);
+    showSearchLoading(`Searching: "${query}"`);
+
+    try {
+        const res = await API.post('/search', { query });
+        showResults(
+            `Search: "${query}"`,
+            res.matched_clients  || [],
+            res.total_matches    || 0,
+            res.search_interpretation || ''
+        );
+    } catch (e) {
+        Toast.error('Search failed: ' + e.message);
+        document.getElementById('resultsContent').innerHTML = `
+            <div class="alert alert-error">
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="none"
+                     stroke="currentColor" stroke-width="1.5">
+                    <circle cx="10" cy="10" r="8"/>
+                    <path stroke-linecap="round" d="M10 7v4m0 2v1"/>
+                </svg>
+                ${escapeHtml(e.message)}
+            </div>
+        `;
+    } finally {
+        setLoading(btn, false);
+    }
+}
+
+// ── Smart Filter ───────────────────────────────────────
+async function runFilter() {
+    const criteria = document.getElementById('filterInput').value.trim();
+    if (!criteria) {
+        Toast.error('Please enter filter criteria');
+        document.getElementById('filterInput').focus();
+        return;
+    }
+
+    const btn = document.getElementById('filterBtn');
+    setLoading(btn, true);
+    showSearchLoading(`Filtering: "${criteria}"`);
+
+    try {
+        const res = await API.post('/search/filter', { criteria });
+        showResults(
+            `Filter: "${criteria}"`,
+            res.matched_clients        || [],
+            res.total_matches          || 0,
+            res.criteria_interpretation || ''
+        );
+    } catch (e) {
+        Toast.error('Filter failed: ' + e.message);
+        document.getElementById('resultsContent').innerHTML = `
+            <div class="alert alert-error">
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="none"
+                     stroke="currentColor" stroke-width="1.5">
+                    <circle cx="10" cy="10" r="8"/>
+                    <path stroke-linecap="round" d="M10 7v4m0 2v1"/>
+                </svg>
+                ${escapeHtml(e.message)}
+            </div>
+        `;
+    } finally {
+        setLoading(btn, false);
+    }
 }
 </script>
 </body>

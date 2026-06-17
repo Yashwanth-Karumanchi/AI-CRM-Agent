@@ -5,33 +5,11 @@ import uuid
 import json
 import os
 import asyncio
+import time
 from datetime import datetime, date
 from app.config import get_settings
 from app.logger import get_logger
-import time
 
-# ── Simple in-memory cache ─────────────────────────────
-_cache = {}
-_CACHE_TTL = 30  # seconds — adjust as needed
-
-
-def _cache_get(key: str):
-    entry = _cache.get(key)
-    if entry and time.time() - entry['ts'] < _CACHE_TTL:
-        return entry['data']
-    return None
-
-
-def _cache_set(key: str, data):
-    _cache[key] = {'data': data, 'ts': time.time()}
-
-
-def _cache_clear(key: str = None):
-    if key:
-        _cache.pop(key, None)
-    else:
-        _cache.clear()
-        
 logger = get_logger(__name__)
 
 SCOPES = [
@@ -61,45 +39,146 @@ LOG_HEADERS = [
     "Input", "Output", "Error"
 ]
 
-# ── Cached spreadsheet ─────────────────────────────────
+# ── In-memory cache ────────────────────────────────────
+_cache: dict = {}
+_CACHE_TTL = 30          # seconds for client records
+_ACTIVITY_CACHE_TTL = 15  # seconds for activity records
+
+
+def _cache_get(key: str):
+    entry = _cache.get(key)
+    if entry is None:
+        return None
+    ttl = (
+        _ACTIVITY_CACHE_TTL
+        if key.startswith("activities_")
+        else _CACHE_TTL
+    )
+    if time.time() - entry["ts"] < ttl:
+        return entry["data"]
+    # Expired — remove it
+    _cache.pop(key, None)
+    return None
+
+
+def _cache_set(key: str, data):
+    _cache[key] = {"data": data, "ts": time.time()}
+
+
+def _cache_clear(key: str = None):
+    """Clear one key or entire cache"""
+    if key:
+        _cache.pop(key, None)
+    else:
+        _cache.clear()
+
+
+# ── Deleted clients store ──────────────────────────────
+# Holds recently deleted client data for 1-hour undo
+_deleted_clients: dict = {}
+_DELETED_TTL = 3600  # 1 hour
+
+
+def store_deleted_client(client_data: dict):
+    """Store a deleted client for potential undo"""
+    _deleted_clients[client_data["client_id"]] = {
+        "data": client_data,
+        "deleted_at": time.time()
+    }
+    logger.info(
+        f"Stored deleted client for undo: "
+        f"{client_data.get('client_id')}"
+    )
+
+
+def get_deleted_client(client_id: str) -> Optional[dict]:
+    """Retrieve a recently deleted client by ID"""
+    entry = _deleted_clients.get(client_id)
+    if entry and (
+        time.time() - entry["deleted_at"] < _DELETED_TTL
+    ):
+        return entry["data"]
+    return None
+
+
+def get_last_deleted_client() -> Optional[dict]:
+    """Get the most recently deleted client"""
+    if not _deleted_clients:
+        return None
+    latest_id, latest_entry = max(
+        _deleted_clients.items(),
+        key=lambda x: x[1]["deleted_at"]
+    )
+    if time.time() - latest_entry["deleted_at"] < _DELETED_TTL:
+        return latest_entry["data"]
+    return None
+
+
+# ── Spreadsheet connection ─────────────────────────────
 _spreadsheet = None
+_spreadsheet_ts: float = 0
+_CONN_TTL = 300  # reconnect every 5 minutes
 
 
 def _get_sheets_client():
+    """Build authenticated gspread client"""
     creds_env = os.getenv("GOOGLE_CREDENTIALS")
     if creds_env:
-        creds_info = json.loads(creds_env)
+        try:
+            creds_info = json.loads(creds_env)
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"GOOGLE_CREDENTIALS is not valid JSON: {e}"
+            )
         creds = Credentials.from_service_account_info(
             creds_info, scopes=SCOPES
         )
-    else:
+    elif os.path.exists("credentials.json"):
         creds = Credentials.from_service_account_file(
             "credentials.json", scopes=SCOPES
+        )
+    else:
+        raise ValueError(
+            "No Google credentials found. "
+            "Set GOOGLE_CREDENTIALS env var in Render."
         )
     return gspread.authorize(creds)
 
 
 def _get_spreadsheet_sync():
-    """Sync — only call from thread pool"""
-    global _spreadsheet
-    if _spreadsheet is None:
+    """
+    Get cached spreadsheet connection.
+    Reconnects every _CONN_TTL seconds to handle
+    Render sleep and token expiry.
+    Sync — must run in thread pool.
+    """
+    global _spreadsheet, _spreadsheet_ts
+
+    now = time.time()
+    if (
+        _spreadsheet is None or
+        now - _spreadsheet_ts > _CONN_TTL
+    ):
         settings = get_settings()
         client = _get_sheets_client()
         _spreadsheet = client.open_by_key(
             settings.spreadsheet_id
         )
+        _spreadsheet_ts = now
+        logger.info("Google Sheets connection established")
+
     return _spreadsheet
 
 
 def get_spreadsheet():
-    """Public sync accessor for importer.py"""
+    """Public sync accessor — used by importer"""
     return _get_spreadsheet_sync()
 
 
 async def _run(fn, *args, **kwargs):
     """
-    Run any blocking/sync gspread function
-    in a thread pool without blocking the event loop.
+    Run any sync gspread function in thread pool.
+    Never blocks the async event loop.
     """
     if kwargs:
         from functools import partial
@@ -110,25 +189,28 @@ async def _run(fn, *args, **kwargs):
 # ── Setup ──────────────────────────────────────────────
 
 def setup_sheets():
-    """Called at startup — sync is fine here"""
+    """
+    Initialise all required worksheets.
+    Called once at startup — sync is fine here.
+    """
     spreadsheet = _get_spreadsheet_sync()
-    existing = [s.title for s in spreadsheet.worksheets()]
+    existing = [ws.title for ws in spreadsheet.worksheets()]
 
-    sheets_config = {
+    config = {
         "Clients": CLIENT_HEADERS,
         "Activities": ACTIVITY_HEADERS,
         "Audit Log": AUDIT_HEADERS,
         "Agent Logs": LOG_HEADERS
     }
 
-    for sheet_name, headers in sheets_config.items():
+    for sheet_name, headers in config.items():
         if sheet_name not in existing:
-            sheet = spreadsheet.add_worksheet(
+            ws = spreadsheet.add_worksheet(
                 title=sheet_name,
                 rows=1000,
                 cols=len(headers)
             )
-            sheet.append_row(headers)
+            ws.append_row(headers)
             logger.info(f"Created sheet: {sheet_name}")
         else:
             logger.info(f"Sheet exists: {sheet_name}")
@@ -137,36 +219,42 @@ def setup_sheets():
 # ── Helpers ────────────────────────────────────────────
 
 def _row_to_client(row: dict, index: int) -> dict:
+    """Map a raw gspread record to a clean client dict"""
     return {
         "row_number": index + 2,
-        "client_id": row.get("Client ID", ""),
-        "created_at": row.get("Created At", ""),
-        "name": row.get("Name", ""),
-        "company": row.get("Company", ""),
-        "email": row.get("Email", ""),
-        "phone": row.get("Phone", ""),
-        "service": row.get("Service", ""),
-        "priority": row.get("Priority", "Medium"),
-        "stage": row.get("Stage", "New"),
-        "folder_url": row.get("Folder URL", ""),
-        "report_url": row.get("Report URL", ""),
-        "next_follow_up": row.get("Next Follow-up", ""),
-        "notes": row.get("Notes", ""),
-        "archived": row.get("Archived", "No")
+        "client_id": str(row.get("Client ID", "")),
+        "created_at": str(row.get("Created At", "")),
+        "name": str(row.get("Name", "")),
+        "company": str(row.get("Company", "")),
+        "email": str(row.get("Email", "")),
+        "phone": str(row.get("Phone", "")),
+        "service": str(row.get("Service", "")),
+        "priority": str(row.get("Priority", "Medium")),
+        "stage": str(row.get("Stage", "New")),
+        "folder_url": str(row.get("Folder URL", "")),
+        "report_url": str(row.get("Report URL", "")),
+        "next_follow_up": str(
+            row.get("Next Follow-up", "")
+        ),
+        "notes": str(row.get("Notes", "")),
+        "archived": str(row.get("Archived", "No"))
     }
 
 
 def _get_all_records_sync() -> List[dict]:
-    """Sync — must run in thread pool"""
-    cached = _cache_get('all_records')
+    """
+    Fetch all client records with caching.
+    Sync — runs in thread pool.
+    """
+    cached = _cache_get("all_records")
     if cached is not None:
         return cached
 
     spreadsheet = _get_spreadsheet_sync()
-    sheet = spreadsheet.worksheet("Clients")
-    records = sheet.get_all_records()
+    ws = spreadsheet.worksheet("Clients")
+    records = ws.get_all_records()
 
-    _cache_set('all_records', records)
+    _cache_set("all_records", records)
     return records
 
 
@@ -175,22 +263,26 @@ async def _get_all_records() -> List[dict]:
     return await _run(_get_all_records_sync)
 
 
-# ── Sync versions (for importer thread pool) ───────────
+# ── Sync helpers for thread pool callers ───────────────
 
 def get_all_clients_sync(
     limit: int = 10000,
     include_archived: bool = False
 ) -> List[dict]:
     """
-    Sync version for use in thread pool via run_in_thread.
-    Used by bulk importer for duplicate checking.
+    Sync version for importer duplicate checking.
+    Must be called from thread pool.
     """
     records = _get_all_records_sync()
     clients = []
     for i, r in enumerate(records):
         if not r.get("Client ID"):
             continue
-        if not include_archived and r.get("Archived") == "Yes":
+        if (
+            not include_archived and
+            str(r.get("Archived", "No")).lower() in
+            ("yes", "true")
+        ):
             continue
         clients.append(_row_to_client(r, i))
     return clients[:limit]
@@ -199,44 +291,56 @@ def get_all_clients_sync(
 # ── Create ─────────────────────────────────────────────
 
 def _create_client_sync(data: dict) -> dict:
-    """Sync — runs in thread pool"""
+    """
+    Create a single client.
+    Sync — runs in thread pool.
+    Validates email uniqueness before inserting.
+    """
     spreadsheet = _get_spreadsheet_sync()
-    sheet = spreadsheet.worksheet("Clients")
-    records = sheet.get_all_records()
+    ws = spreadsheet.worksheet("Clients")
 
+    # Duplicate email check
     if data.get("email"):
+        records = ws.get_all_records()
         duplicate = next(
-            (r for r in records
-             if r.get("Email", "").lower() ==
-             str(data["email"]).lower()
-             and r.get("Archived", "") != "Yes"),
+            (
+                r for r in records
+                if r.get("Email", "").strip().lower() ==
+                str(data["email"]).strip().lower()
+                and str(r.get("Archived", "No")).lower()
+                not in ("yes", "true")
+            ),
             None
         )
         if duplicate:
             raise ValueError(
-                f"Client with this email already exists: "
-                f"{duplicate['Client ID']}"
+                f"A client with email '{data['email']}' "
+                f"already exists: "
+                f"{duplicate.get('Client ID')}"
             )
 
     client_id = "CL-" + str(uuid.uuid4())[:8].upper()
     now = datetime.utcnow().isoformat()
 
     row = [
-        client_id, now,
-        data.get("name", ""),
-        data.get("company", "") or "",
+        client_id,
+        now,
+        str(data.get("name", "")),
+        str(data.get("company", "") or ""),
         str(data.get("email", "") or ""),
-        data.get("phone", "") or "",
-        data.get("service", "") or "",
-        data.get("priority", "Medium"),
-        data.get("stage", "New"),
-        "", "", "",
-        data.get("notes", "") or "",
-        "No"
+        str(data.get("phone", "") or ""),
+        str(data.get("service", "") or ""),
+        str(data.get("priority", "Medium")),
+        str(data.get("stage", "New")),
+        "",   # Folder URL
+        "",   # Report URL
+        "",   # Next Follow-up
+        str(data.get("notes", "") or ""),
+        "No"  # Archived
     ]
 
-    sheet.append_row(row)
-    _cache_clear('all_records')  # ← invalidate cache
+    ws.append_row(row, value_input_option="RAW")
+    _cache_clear("all_records")
 
     return {
         "client_id": client_id,
@@ -254,27 +358,34 @@ def _create_client_sync(data: dict) -> dict:
 
 
 async def create_client(data: dict) -> dict:
+    """Create a client — non-blocking"""
     client = await _run(_create_client_sync, data)
 
-    # Log activity without blocking
+    # Fire-and-forget logging
     asyncio.create_task(log_activity(
-        client["client_id"], "CLIENT_CREATED",
+        client["client_id"],
+        "CLIENT_CREATED",
         f"Created client: {client['name']}",
-        "SUCCESS", ""
+        "SUCCESS",
+        ""
     ))
 
-    logger.info(f"Created client: {client['client_id']}")
+    logger.info(f"Client created: {client['client_id']}")
     return client
 
 
-# ── Batch Create (for bulk import) ─────────────────────
+# ── Batch Create ───────────────────────────────────────
 
 def _batch_create_sync(rows: List[dict]) -> dict:
-    """Single API call for all rows"""
+    """
+    Insert all rows in ONE Google Sheets API call.
+    Massively faster than one-by-one inserts.
+    Sync — runs in thread pool.
+    """
     spreadsheet = _get_spreadsheet_sync()
     ws = spreadsheet.worksheet("Clients")
     headers = ws.row_values(1)
-    col = {h: i for i, h in enumerate(headers)}
+    col_index = {h: i for i, h in enumerate(headers)}
     now = datetime.utcnow().isoformat()
 
     created = []
@@ -286,10 +397,14 @@ def _batch_create_sync(rows: List[dict]) -> dict:
             client_id = "CL-" + str(uuid.uuid4())[:8].upper()
             sheet_row = [""] * len(headers)
 
-            def set_col(field, value,
-                        _row=sheet_row, _col=col):
-                if field in _col:
-                    _row[_col[field]] = value or ""
+            def set_col(
+                field: str,
+                value,
+                _row=sheet_row,
+                _col=col_index
+            ):
+                if field in _col and value is not None:
+                    _row[_col[field]] = str(value)
 
             set_col("Client ID", client_id)
             set_col("Created At", now)
@@ -298,7 +413,10 @@ def _batch_create_sync(rows: List[dict]) -> dict:
             set_col("Email", row.get("email", ""))
             set_col("Phone", row.get("phone", ""))
             set_col("Service", row.get("service", ""))
-            set_col("Priority", row.get("priority", "Medium"))
+            set_col(
+                "Priority",
+                row.get("priority", "Medium")
+            )
             set_col("Stage", row.get("stage", "New"))
             set_col("Notes", row.get("notes", ""))
             set_col("Archived", "No")
@@ -312,6 +430,7 @@ def _batch_create_sync(rows: List[dict]) -> dict:
                 "client_id": client_id,
                 "email": row.get("email")
             })
+
         except Exception as e:
             failed.append({
                 "name": row.get("name", "Unknown"),
@@ -326,12 +445,12 @@ def _batch_create_sync(rows: List[dict]) -> dict:
             table_range="A1"
         )
 
-    _cache_clear('all_records')  # ← invalidate cache
+    _cache_clear("all_records")
     return {"created": created, "failed": failed}
 
 
 async def batch_create_clients(rows: List[dict]) -> dict:
-    """Async batch insert — never blocks event loop"""
+    """Batch insert all clients — non-blocking"""
     return await _run(_batch_create_sync, rows)
 
 
@@ -346,57 +465,94 @@ async def get_all_clients(
     include_archived: bool = False,
     limit: int = 20
 ) -> List[dict]:
+    """Get clients with optional filtering"""
     records = await _get_all_records()
     results = []
 
     for i, r in enumerate(records):
-        if not include_archived and r.get("Archived") == "Yes":
+        # Skip rows without a client ID
+        if not r.get("Client ID"):
             continue
-        if client_id and r.get("Client ID", "").lower() != client_id.lower():
+
+        # Archived filter
+        is_archived = str(
+            r.get("Archived", "No")
+        ).lower() in ("yes", "true")
+        if not include_archived and is_archived:
             continue
-        if email and r.get("Email", "").lower() != email.lower():
+
+        # Field filters
+        if client_id and (
+            r.get("Client ID", "").lower() !=
+            client_id.lower()
+        ):
             continue
-        if stage and r.get("Stage", "").lower() != stage.lower():
+        if email and (
+            r.get("Email", "").lower() !=
+            email.lower()
+        ):
             continue
-        if priority and r.get("Priority", "").lower() != priority.lower():
+        if stage and (
+            r.get("Stage", "").lower() !=
+            stage.lower()
+        ):
             continue
+        if priority and (
+            r.get("Priority", "").lower() !=
+            priority.lower()
+        ):
+            continue
+
+        # Text search across all fields
         if query:
             searchable = " ".join(
                 str(v) for v in r.values()
             ).lower()
             if query.lower() not in searchable:
                 continue
+
         results.append(_row_to_client(r, i))
 
+    # Return newest first
     return list(reversed(results))[:limit]
 
 
 async def get_client_by_id(
     client_id: str
 ) -> Optional[dict]:
+    """Get a single client by ID"""
     records = await _get_all_records()
     for i, r in enumerate(records):
-        if r.get("Client ID", "").lower() == client_id.lower():
+        if (
+            r.get("Client ID", "").lower() ==
+            client_id.lower()
+        ):
             return _row_to_client(r, i)
     return None
 
 
 async def require_client(client_id: str) -> dict:
+    """Get client or raise ValueError if not found"""
     client = await get_client_by_id(client_id)
     if not client:
-        raise ValueError(f"Client not found: {client_id}")
+        raise ValueError(
+            f"Client not found: {client_id}"
+        )
     return client
 
 
 # ── Update ─────────────────────────────────────────────
 
 def _update_cell_sync(
-    row_number: int, col: int, value: str
+    row_number: int,
+    col: int,
+    value: str
 ):
+    """Update a single cell — sync, runs in thread pool"""
     spreadsheet = _get_spreadsheet_sync()
-    sheet = spreadsheet.worksheet("Clients")
-    sheet.update_cell(row_number, col, value)
-    _cache_clear('all_records')  # ← invalidate cache
+    ws = spreadsheet.worksheet("Clients")
+    ws.update_cell(row_number, col, str(value))
+    _cache_clear("all_records")
 
 
 async def update_client_field(
@@ -404,40 +560,56 @@ async def update_client_field(
     col: int,
     value: str
 ):
+    """Update a cell — non-blocking"""
     await _run(_update_cell_sync, row_number, col, value)
+
+
+# Column index map for client fields
+_FIELD_COL_MAP = {
+    "name": 3,
+    "company": 4,
+    "email": 5,
+    "phone": 6,
+    "service": 7,
+    "priority": 8,
+    "stage": 9,
+    "folder_url": 10,
+    "report_url": 11,
+    "next_follow_up": 12,
+    "notes": 13,
+    "archived": 14
+}
 
 
 async def update_client(
     client_id: str,
     updates: dict,
     changed_by: str = "api"
-) -> dict:
+) -> Optional[dict]:
+    """Update multiple fields on a client"""
     client = await require_client(client_id)
     row = client["row_number"]
 
-    field_map = {
-        "name": 3, "company": 4, "email": 5,
-        "phone": 6, "service": 7, "priority": 8,
-        "stage": 9, "notes": 13,
-        "next_follow_up": 12
-    }
-
     for field, new_value in updates.items():
-        if field in field_map and new_value is not None:
-            old_value = client.get(field, "")
-            await update_client_field(
-                row, field_map[field], str(new_value)
-            )
-            asyncio.create_task(log_audit(
-                client_id, field,
-                str(old_value), str(new_value),
-                changed_by
-            ))
+        col = _FIELD_COL_MAP.get(field)
+        if col is None or new_value is None:
+            continue
+
+        old_value = client.get(field, "")
+        await update_client_field(row, col, str(new_value))
+
+        asyncio.create_task(log_audit(
+            client_id, field,
+            str(old_value), str(new_value),
+            changed_by
+        ))
 
     asyncio.create_task(log_activity(
-        client_id, "CLIENT_UPDATED",
-        f"Updated: {', '.join(updates.keys())}",
-        "SUCCESS", ""
+        client_id,
+        "CLIENT_UPDATED",
+        f"Updated fields: {', '.join(updates.keys())}",
+        "SUCCESS",
+        ""
     ))
 
     return await get_client_by_id(client_id)
@@ -448,18 +620,24 @@ async def update_stage(
     stage: str,
     changed_by: str = "api"
 ) -> dict:
+    """Update client pipeline stage"""
     client = await require_client(client_id)
     old_stage = client["stage"]
 
-    await update_client_field(client["row_number"], 9, stage)
+    await update_client_field(
+        client["row_number"], _FIELD_COL_MAP["stage"], stage
+    )
 
     asyncio.create_task(log_audit(
-        client_id, "stage", old_stage, stage, changed_by
+        client_id, "stage",
+        old_stage, stage, changed_by
     ))
     asyncio.create_task(log_activity(
-        client_id, "STAGE_UPDATED",
+        client_id,
+        "STAGE_UPDATED",
         f"Stage: {old_stage} → {stage}",
-        "SUCCESS", ""
+        "SUCCESS",
+        ""
     ))
 
     return {
@@ -473,11 +651,14 @@ async def update_next_followup(
     client_id: str,
     follow_up_date: str
 ) -> dict:
+    """Set the next follow-up date"""
     client = await require_client(client_id)
     old_date = client.get("next_follow_up", "")
 
     await update_client_field(
-        client["row_number"], 12, follow_up_date
+        client["row_number"],
+        _FIELD_COL_MAP["next_follow_up"],
+        follow_up_date
     )
 
     asyncio.create_task(log_audit(
@@ -485,9 +666,11 @@ async def update_next_followup(
         old_date, follow_up_date, "api"
     ))
     asyncio.create_task(log_activity(
-        client_id, "FOLLOWUP_UPDATED",
+        client_id,
+        "FOLLOWUP_UPDATED",
         f"Follow-up set to {follow_up_date}",
-        "SUCCESS", ""
+        "SUCCESS",
+        ""
     ))
 
     return {
@@ -497,43 +680,55 @@ async def update_next_followup(
     }
 
 
-# ── Delete / Archive / Restore ─────────────────────────
+# ── Archive / Restore / Delete ─────────────────────────
 
 async def archive_client(client_id: str) -> dict:
+    """Soft-delete: mark client as archived"""
     client = await require_client(client_id)
 
-    if client.get("archived") == "Yes":
+    if str(client.get("archived", "No")).lower() in (
+        "yes", "true"
+    ):
         raise ValueError(
             f"Client {client_id} is already archived"
         )
 
-    await update_client_field(client["row_number"], 14, "Yes")
+    await update_client_field(
+        client["row_number"],
+        _FIELD_COL_MAP["archived"],
+        "Yes"
+    )
 
     asyncio.create_task(log_audit(
         client_id, "archived", "No", "Yes", "api"
     ))
     asyncio.create_task(log_activity(
-        client_id, "CLIENT_ARCHIVED",
-        f"Archived client {client['name']}",
-        "SUCCESS", ""
+        client_id,
+        "CLIENT_ARCHIVED",
+        f"Archived: {client['name']}",
+        "SUCCESS",
+        ""
     ))
 
     return {"client_id": client_id, "archived": True}
 
 
 def _restore_client_sync(client_id: str) -> dict:
+    """Restore archived client — sync"""
     spreadsheet = _get_spreadsheet_sync()
-    sheet = spreadsheet.worksheet("Clients")
-    records = sheet.get_all_records()
+    ws = spreadsheet.worksheet("Clients")
+    records = ws.get_all_records()
 
     for i, r in enumerate(records):
         if r.get("Client ID") == client_id:
-            if r.get("Archived") != "Yes":
+            if str(r.get("Archived", "No")).lower() not in (
+                "yes", "true"
+            ):
                 raise ValueError(
                     f"Client {client_id} is not archived"
                 )
-            sheet.update_cell(i + 2, 14, "No")
-            _cache_clear('all_records')  # ← invalidate cache
+            ws.update_cell(i + 2, _FIELD_COL_MAP["archived"] , "No")
+            _cache_clear("all_records")
             return {
                 "client_id": client_id,
                 "name": r.get("Name"),
@@ -544,29 +739,45 @@ def _restore_client_sync(client_id: str) -> dict:
 
 
 async def restore_client(client_id: str) -> dict:
+    """Restore an archived client — non-blocking"""
     result = await _run(_restore_client_sync, client_id)
 
     asyncio.create_task(log_audit(
         client_id, "archived", "Yes", "No", "api"
     ))
     asyncio.create_task(log_activity(
-        client_id, "CLIENT_RESTORED",
-        f"Restored client {result.get('name')}",
-        "SUCCESS", ""
+        client_id,
+        "CLIENT_RESTORED",
+        f"Restored: {result.get('name')}",
+        "SUCCESS",
+        ""
     ))
 
     return result
 
 
 def _delete_client_sync(client_id: str) -> dict:
+    """
+    Permanently delete a client row from Sheets.
+    Stores client data first for 1-hour undo window.
+    Sync — runs in thread pool.
+    """
     spreadsheet = _get_spreadsheet_sync()
-    sheet = spreadsheet.worksheet("Clients")
-    records = sheet.get_all_records()
+    ws = spreadsheet.worksheet("Clients")
+    records = ws.get_all_records()
 
     for i, r in enumerate(records):
         if r.get("Client ID") == client_id:
-            sheet.delete_rows(i + 2)
-            _cache_clear('all_records')  # ← invalidate cache
+            # Store before deleting
+            client_data = _row_to_client(r, i)
+            store_deleted_client(client_data)
+
+            ws.delete_rows(i + 2)
+            _cache_clear("all_records")
+
+            logger.info(
+                f"Permanently deleted client: {client_id}"
+            )
             return {
                 "client_id": client_id,
                 "deleted": True,
@@ -576,24 +787,128 @@ def _delete_client_sync(client_id: str) -> dict:
     raise ValueError(f"Client not found: {client_id}")
 
 
-async def delete_client_permanently(client_id: str) -> dict:
+async def delete_client_permanently(
+    client_id: str
+) -> dict:
+    """Permanently delete a client — non-blocking"""
     result = await _run(_delete_client_sync, client_id)
 
     asyncio.create_task(log_activity(
-        client_id, "CLIENT_DELETED",
-        f"Permanently deleted {result.get('name')}",
-        "SUCCESS", ""
+        client_id,
+        "CLIENT_DELETED",
+        f"Permanently deleted: {result.get('name')}",
+        "SUCCESS",
+        ""
+    ))
+
+    return result
+
+
+def _restore_deleted_client_sync(
+    client_data: dict
+) -> dict:
+    """
+    Re-insert a permanently deleted client.
+    Uses original client_id and all original data.
+    Sync — runs in thread pool.
+    """
+    spreadsheet = _get_spreadsheet_sync()
+    ws = spreadsheet.worksheet("Clients")
+
+    # Ensure not already re-inserted
+    records = ws.get_all_records()
+    existing = next(
+        (r for r in records
+         if r.get("Client ID") ==
+         client_data.get("client_id")),
+        None
+    )
+    if existing:
+        raise ValueError(
+            f"Client {client_data['client_id']} "
+            f"already exists in the sheet"
+        )
+
+    row = [
+        client_data.get("client_id", ""),
+        client_data.get("created_at", ""),
+        client_data.get("name", ""),
+        client_data.get("company", ""),
+        client_data.get("email", ""),
+        client_data.get("phone", ""),
+        client_data.get("service", ""),
+        client_data.get("priority", "Medium"),
+        client_data.get("stage", "New"),
+        client_data.get("folder_url", ""),
+        client_data.get("report_url", ""),
+        client_data.get("next_follow_up", ""),
+        client_data.get("notes", ""),
+        "No"
+    ]
+
+    ws.append_row(row, value_input_option="RAW")
+    _cache_clear("all_records")
+
+    # Remove from deleted store
+    _deleted_clients.pop(
+        client_data.get("client_id"), None
+    )
+
+    return {
+        "client_id": client_data["client_id"],
+        "name": client_data.get("name"),
+        "restored": True
+    }
+
+
+async def restore_deleted_client(
+    client_id: str = None
+) -> dict:
+    """
+    Restore a permanently deleted client.
+    Pass client_id to restore specific client,
+    or omit to restore the most recently deleted.
+    Undo window: 1 hour from deletion.
+    """
+    if client_id:
+        data = get_deleted_client(client_id)
+        if not data:
+            raise ValueError(
+                f"No deleted record found for {client_id}. "
+                f"Either not deleted recently or "
+                f"1-hour undo window has expired."
+            )
+    else:
+        data = get_last_deleted_client()
+        if not data:
+            raise ValueError(
+                "No recently deleted clients found. "
+                "Deletions can only be undone within 1 hour."
+            )
+
+    result = await _run(
+        _restore_deleted_client_sync, data
+    )
+
+    asyncio.create_task(log_activity(
+        result["client_id"],
+        "CLIENT_RESTORED",
+        f"Undo delete: restored {result['name']}",
+        "SUCCESS",
+        ""
     ))
 
     return result
 
 
 async def get_archived_clients() -> List[dict]:
+    """Get all archived clients"""
     records = await _get_all_records()
     return [
         _row_to_client(r, i)
         for i, r in enumerate(records)
-        if r.get("Archived") == "Yes"
+        if str(r.get("Archived", "No")).lower() in
+        ("yes", "true")
     ]
 
 
@@ -603,16 +918,17 @@ async def bulk_update_stage(
     client_ids: List[str],
     stage: str
 ) -> dict:
+    """Update stage for multiple clients"""
     results = []
     errors = []
 
-    for client_id in client_ids:
+    for cid in client_ids:
         try:
-            result = await update_stage(client_id, stage)
+            result = await update_stage(cid, stage)
             results.append(result)
         except Exception as e:
             errors.append({
-                "client_id": client_id,
+                "client_id": cid,
                 "error": str(e)
             })
 
@@ -625,16 +941,17 @@ async def bulk_update_stage(
 
 
 async def bulk_archive(client_ids: List[str]) -> dict:
+    """Archive multiple clients"""
     results = []
     errors = []
 
-    for client_id in client_ids:
+    for cid in client_ids:
         try:
-            result = await archive_client(client_id)
+            result = await archive_client(cid)
             results.append(result)
         except Exception as e:
             errors.append({
-                "client_id": client_id,
+                "client_id": cid,
                 "error": str(e)
             })
 
@@ -646,13 +963,22 @@ async def bulk_archive(client_ids: List[str]) -> dict:
     }
 
 
-# ── Rollback ───────────────────────────────────────────
+# ── Audit & Rollback ───────────────────────────────────
 
-def _get_audit_records_sync(client_id: str) -> List[dict]:
+def _get_audit_records_sync(
+    client_id: str
+) -> List[dict]:
+    """Fetch audit history for a client — sync"""
+    cache_key = f"audit_{client_id}"
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return cached
+
     spreadsheet = _get_spreadsheet_sync()
-    sheet = spreadsheet.worksheet("Audit Log")
-    records = sheet.get_all_records()
-    return [
+    ws = spreadsheet.worksheet("Audit Log")
+    records = ws.get_all_records()
+
+    result = [
         {
             "audit_id": r.get("Audit ID"),
             "timestamp": r.get("Timestamp"),
@@ -665,56 +991,67 @@ def _get_audit_records_sync(client_id: str) -> List[dict]:
         if r.get("Client ID") == client_id
     ]
 
+    _cache_set(cache_key, result)
+    return result
+
 
 async def get_client_audit_history(
     client_id: str
 ) -> List[dict]:
-    return await _run(_get_audit_records_sync, client_id)
+    """Get audit trail for a client — non-blocking"""
+    return await _run(
+        _get_audit_records_sync, client_id
+    )
 
 
 async def rollback_client_field(
     client_id: str,
     field: str
 ) -> dict:
+    """Rollback a specific field to its previous value"""
     history = await get_client_audit_history(client_id)
-    field_history = [h for h in history if h["field"] == field]
+    field_history = [
+        h for h in history
+        if h.get("field") == field
+    ]
 
     if not field_history:
         raise ValueError(
-            f"No history for field '{field}' "
+            f"No history found for field '{field}' "
             f"on client {client_id}"
         )
 
+    col = _FIELD_COL_MAP.get(field)
+    if col is None:
+        raise ValueError(
+            f"Field '{field}' cannot be rolled back. "
+            f"Supported: {list(_FIELD_COL_MAP.keys())}"
+        )
+
     last_change = field_history[-1]
-    old_value = last_change["old_value"]
-
-    field_map = {
-        "name": 3, "company": 4, "email": 5,
-        "phone": 6, "service": 7, "priority": 8,
-        "stage": 9, "notes": 13,
-        "next_follow_up": 12, "archived": 14
-    }
-
-    if field not in field_map:
-        raise ValueError(f"Cannot rollback field: {field}")
+    old_value = str(last_change.get("old_value", ""))
 
     client = await require_client(client_id)
-    current_value = client.get(field, "")
+    current_value = str(client.get(field, ""))
 
     await update_client_field(
-        client["row_number"],
-        field_map[field],
-        old_value
+        client["row_number"], col, old_value
     )
+
+    # Clear audit cache for this client
+    _cache_clear(f"audit_{client_id}")
 
     asyncio.create_task(log_audit(
         client_id, field,
         current_value, old_value, "rollback"
     ))
     asyncio.create_task(log_activity(
-        client_id, "FIELD_ROLLED_BACK",
-        f"Rolled back '{field}': {current_value} → {old_value}",
-        "SUCCESS", ""
+        client_id,
+        "FIELD_ROLLED_BACK",
+        f"Rolled back '{field}': "
+        f"'{current_value}' → '{old_value}'",
+        "SUCCESS",
+        ""
     ))
 
     return {
@@ -726,14 +1063,26 @@ async def rollback_client_field(
 
 
 async def rollback_last_change(client_id: str) -> dict:
+    """Rollback the most recent change to a client"""
     history = await get_client_audit_history(client_id)
 
     if not history:
         raise ValueError(
-            f"No change history for client {client_id}"
+            f"No change history found for {client_id}"
         )
 
-    last_change = history[-1]
+    # Skip rollback entries themselves
+    real_changes = [
+        h for h in history
+        if h.get("changed_by") != "rollback"
+    ]
+
+    if not real_changes:
+        raise ValueError(
+            f"No reversible changes found for {client_id}"
+        )
+
+    last_change = real_changes[-1]
     return await rollback_client_field(
         client_id, last_change["field"]
     )
@@ -742,20 +1091,22 @@ async def rollback_last_change(client_id: str) -> dict:
 # ── Follow-ups ─────────────────────────────────────────
 
 async def get_followups_due() -> List[dict]:
+    """Get clients with overdue follow-ups"""
     today = date.today().isoformat()
     clients = await get_all_clients(limit=1000)
 
     return [
         c for c in clients
-        if c.get("next_follow_up")
-        and c["next_follow_up"] <= today
-        and c.get("stage") not in ["Won", "Lost"]
+        if c.get("next_follow_up") and
+        c["next_follow_up"] <= today and
+        c.get("stage") not in ("Won", "Lost")
     ]
 
 
 # ── Pipeline ───────────────────────────────────────────
 
 async def get_pipeline_summary() -> dict:
+    """Get aggregated pipeline statistics"""
     clients = await get_all_clients(limit=1000)
 
     stages = [
@@ -763,20 +1114,28 @@ async def get_pipeline_summary() -> dict:
         "Consultation Scheduled",
         "Proposal Sent", "Won", "Lost"
     ]
-
     stage_counts = {s: 0 for s in stages}
+
     for c in clients:
         stage = c.get("stage", "New")
-        stage_counts[stage] = stage_counts.get(stage, 0) + 1
+        if stage in stage_counts:
+            stage_counts[stage] += 1
+        else:
+            stage_counts[stage] = 1
 
     high_priority = [
         c for c in clients
-        if c.get("priority") == "High"
-        and c.get("stage") not in ["Won", "Lost"]
+        if c.get("priority") == "High" and
+        c.get("stage") not in ("Won", "Lost")
     ]
-
-    won = [c for c in clients if c.get("stage") == "Won"]
-    lost = [c for c in clients if c.get("stage") == "Lost"]
+    won = [
+        c for c in clients
+        if c.get("stage") == "Won"
+    ]
+    lost = [
+        c for c in clients
+        if c.get("stage") == "Lost"
+    ]
 
     return {
         "total_clients": len(clients),
@@ -806,17 +1165,20 @@ def _log_activity_sync(
     result: str,
     resource_url: str
 ):
+    """Append activity row — sync"""
     spreadsheet = _get_spreadsheet_sync()
-    sheet = spreadsheet.worksheet("Activities")
-    sheet.append_row([
+    ws = spreadsheet.worksheet("Activities")
+    ws.append_row([
         "ACT-" + str(uuid.uuid4())[:8].upper(),
         client_id,
         datetime.utcnow().isoformat(),
         activity_type,
-        description,
+        str(description)[:500],
         result,
-        resource_url
+        str(resource_url)[:200]
     ])
+    # Clear activity cache for this client
+    _cache_clear(f"activities_{client_id}")
 
 
 async def log_activity(
@@ -826,24 +1188,36 @@ async def log_activity(
     result: str,
     resource_url: str
 ):
+    """Log activity — non-blocking, swallows errors"""
     try:
         await _run(
             _log_activity_sync,
-            client_id, activity_type,
-            description, result, resource_url
+            client_id,
+            activity_type,
+            description,
+            result,
+            resource_url
         )
     except Exception as e:
-        logger.error(f"Failed to log activity: {e}")
+        logger.error(f"Activity log failed: {e}")
 
 
 async def get_client_activities(
     client_id: str
 ) -> List[dict]:
+    """Get all activities for a client — cached"""
+
     def _sync():
+        cache_key = f"activities_{client_id}"
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            return cached
+
         spreadsheet = _get_spreadsheet_sync()
-        sheet = spreadsheet.worksheet("Activities")
-        records = sheet.get_all_records()
-        return [
+        ws = spreadsheet.worksheet("Activities")
+        records = ws.get_all_records()
+
+        result = [
             {
                 "activity_id": r.get("Activity ID"),
                 "timestamp": r.get("Timestamp"),
@@ -855,6 +1229,10 @@ async def get_client_activities(
             for r in records
             if r.get("Client ID") == client_id
         ]
+
+        _cache_set(cache_key, result)
+        return result
+
     return await _run(_sync)
 
 
@@ -863,10 +1241,13 @@ async def search_activities(
     client_id: Optional[str] = None,
     limit: int = 50
 ) -> List[dict]:
+    """Search activities with optional filters"""
+
     def _sync():
         spreadsheet = _get_spreadsheet_sync()
-        sheet = spreadsheet.worksheet("Activities")
-        records = sheet.get_all_records()
+        ws = spreadsheet.worksheet("Activities")
+        records = ws.get_all_records()
+
         results = [
             {
                 "activity_id": r.get("Activity ID"),
@@ -878,11 +1259,15 @@ async def search_activities(
                 "resource_url": r.get("Resource URL")
             }
             for r in records
-            if (not client_id or
-                r.get("Client ID") == client_id)
-            and (not activity_type or
-                 r.get("Type") == activity_type)
+            if (
+                not client_id or
+                r.get("Client ID") == client_id
+            ) and (
+                not activity_type or
+                r.get("Type") == activity_type
+            )
         ]
+
         return list(reversed(results))[:limit]
 
     return await _run(_sync)
@@ -897,17 +1282,19 @@ def _log_audit_sync(
     new_value: str,
     changed_by: str
 ):
+    """Append audit row — sync"""
     spreadsheet = _get_spreadsheet_sync()
-    sheet = spreadsheet.worksheet("Audit Log")
-    sheet.append_row([
+    ws = spreadsheet.worksheet("Audit Log")
+    ws.append_row([
         "AUD-" + str(uuid.uuid4())[:8].upper(),
         client_id,
         datetime.utcnow().isoformat(),
         field,
-        old_value,
-        new_value,
+        str(old_value)[:500],
+        str(new_value)[:500],
         changed_by
     ])
+    _cache_clear(f"audit_{client_id}")
 
 
 async def log_audit(
@@ -917,6 +1304,7 @@ async def log_audit(
     new_value: str,
     changed_by: str
 ):
+    """Log audit entry — non-blocking, swallows errors"""
     try:
         await _run(
             _log_audit_sync,
@@ -924,7 +1312,7 @@ async def log_audit(
             old_value, new_value, changed_by
         )
     except Exception as e:
-        logger.error(f"Failed to log audit: {e}")
+        logger.error(f"Audit log failed: {e}")
 
 
 # ── Agent Logs ─────────────────────────────────────────
@@ -935,9 +1323,10 @@ def _log_agent_sync(
     output_text: str,
     error: str
 ):
+    """Append agent log row — sync"""
     spreadsheet = _get_spreadsheet_sync()
-    sheet = spreadsheet.worksheet("Agent Logs")
-    sheet.append_row([
+    ws = spreadsheet.worksheet("Agent Logs")
+    ws.append_row([
         "LOG-" + str(uuid.uuid4())[:8].upper(),
         datetime.utcnow().isoformat(),
         log_type,
@@ -953,10 +1342,11 @@ async def log_agent(
     output_text: str,
     error: str = ""
 ):
+    """Log agent operation — non-blocking, swallows errors"""
     try:
         await _run(
             _log_agent_sync,
             log_type, input_text, output_text, error
         )
     except Exception as e:
-        logger.error(f"Failed to log agent: {e}")
+        logger.error(f"Agent log failed: {e}")

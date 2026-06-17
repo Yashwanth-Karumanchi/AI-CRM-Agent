@@ -3,34 +3,28 @@ from functools import lru_cache
 
 
 class Settings(BaseSettings):
-    # API Keys
+    # ── API Keys ───────────────────────────────────────
     gemini_api_key: str
-    groq_api_key: str = ""
 
-    # Google
+    # ── Google Sheets ──────────────────────────────────
     spreadsheet_id: str
 
-    # Auth
+    # ── Auth ───────────────────────────────────────────
     api_username: str
     api_password: str
 
-    # Gmail
+    # ── Gmail ──────────────────────────────────────────
     gmail_address: str
 
-    # LLM Config — change model here, affects everywhere
+    # ── LLM Config ─────────────────────────────────────
+    # Change model here or via LLM_MODEL env var in Render
     llm_model: str = "models/gemini-3.1-flash-lite"
-    llm_temperature: float = 0.3
-    llm_max_tokens: int = 2048
 
     class Config:
         env_file = ".env"
+        extra = "ignore"  # ignore unknown env vars
 
 
 @lru_cache()
 def get_settings() -> Settings:
     return Settings()
-
-
-# ── Model shortcuts ────────────────────────────────────
-def get_model_name() -> str:
-    return get_settings().llm_model

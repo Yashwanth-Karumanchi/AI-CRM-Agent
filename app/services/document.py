@@ -8,14 +8,42 @@ from app.logger import get_logger
 
 logger = get_logger(__name__)
 
+# ── Design constants ───────────────────────────────────
+TEAL = RGBColor(0x2D, 0x7A, 0x6B)
+DARK = RGBColor(0x1A, 0x1A, 0x1A)
+MUTED = RGBColor(0x5A, 0x55, 0x50)
+LIGHT = RGBColor(0x9A, 0x90, 0x80)
+
+
+def _style_heading(para, color=TEAL):
+    """Apply brand color to heading runs"""
+    for run in para.runs:
+        run.font.color.rgb = color
+        run.font.bold = True
+
+
+def _add_kv_table(doc, rows: list) -> None:
+    """Reusable 2-column label/value table"""
+    table = doc.add_table(rows=0, cols=2)
+    table.style = "Table Grid"
+    for label, value in rows:
+        row = table.add_row().cells
+        row[0].text = str(label)
+        row[1].text = str(value) if value is not None else "N/A"
+        runs = row[0].paragraphs[0].runs
+        if runs:
+            runs[0].bold = True
+            runs[0].font.color.rgb = MUTED
+    doc.add_paragraph()
+
+
 def generate_client_report(
     client: dict,
     analysis: dict
 ) -> bytes:
-    """Generate a professional Word document for a client"""
+    """Generate a professional Word report for a client"""
     doc = Document()
 
-    # Page margins
     for section in doc.sections:
         section.top_margin = Inches(1)
         section.bottom_margin = Inches(1)
@@ -23,66 +51,63 @@ def generate_client_report(
         section.right_margin = Inches(1.2)
 
     # Title
-    title = doc.add_heading("Client Intake Report", 0)
+    title = doc.add_heading("CLIENT INTAKE REPORT", 0)
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    _style_heading(title, TEAL)
 
-    # Subtitle
     subtitle = doc.add_paragraph(
-        f"Generated: {datetime.now().strftime('%B %d, %Y %I:%M %p')}"
+        f"Generated: "
+        f"{datetime.now().strftime('%B %d, %Y at %I:%M %p')}"
     )
     subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
-
+    if subtitle.runs:
+        subtitle.runs[0].italic = True
+        subtitle.runs[0].font.color.rgb = LIGHT
     doc.add_paragraph()
 
-    # Client Details Section
-    doc.add_heading("Client Details", level=1)
-
-    table = doc.add_table(rows=0, cols=2)
-    table.style = "Table Grid"
-    table.alignment = WD_TABLE_ALIGNMENT.LEFT
-
-    fields = [
+    # Client details
+    h = doc.add_heading("CLIENT DETAILS", level=1)
+    _style_heading(h)
+    _add_kv_table(doc, [
         ("Client ID", client.get("client_id", "N/A")),
-        ("Name", client.get("name", "N/A")),
-        ("Company", client.get("company") or "Not provided"),
-        ("Email", client.get("email") or "Not provided"),
-        ("Phone", client.get("phone") or "Not provided"),
-        ("Service", client.get("service") or "Not provided"),
+        ("Full Name", client.get("name", "N/A")),
+        ("Company",
+         client.get("company") or "Not provided"),
+        ("Email",
+         client.get("email") or "Not provided"),
+        ("Phone",
+         client.get("phone") or "Not provided"),
+        ("Service Requested",
+         client.get("service") or "Not provided"),
         ("Priority", client.get("priority", "Medium")),
-        ("Stage", client.get("stage", "New")),
-        ("Created", client.get("created_at", "N/A")[:10]),
+        ("Pipeline Stage", client.get("stage", "New")),
+        ("Created Date",
+         str(client.get("created_at", "N/A"))[:10]),
+        ("Next Follow-up",
+         client.get("next_follow_up") or "Not set")
+    ])
+
+    # Analysis sections
+    analysis_sections = [
+        ("EXECUTIVE SUMMARY", "executive_summary"),
+        ("BUSINESS PROBLEM", "business_problem"),
+        ("CURRENT PROCESS", "current_process"),
     ]
 
-    for label, value in fields:
-        row = table.add_row().cells
-        row[0].text = label
-        row[1].text = str(value)
-        row[0].paragraphs[0].runs[0].bold = True
-
-    doc.add_paragraph()
-
-    # Executive Summary
-    if analysis.get("executive_summary"):
-        doc.add_heading("Executive Summary", level=1)
-        doc.add_paragraph(analysis["executive_summary"])
-        doc.add_paragraph()
-
-    # Business Problem
-    if analysis.get("business_problem"):
-        doc.add_heading("Business Problem", level=1)
-        doc.add_paragraph(analysis["business_problem"])
-        doc.add_paragraph()
-
-    # Current Process
-    if analysis.get("current_process"):
-        doc.add_heading("Current Process", level=1)
-        doc.add_paragraph(analysis["current_process"])
-        doc.add_paragraph()
+    for heading_text, key in analysis_sections:
+        if analysis.get(key):
+            h = doc.add_heading(heading_text, level=1)
+            _style_heading(h)
+            doc.add_paragraph(str(analysis[key]))
+            doc.add_paragraph()
 
     # Recommendations
     if analysis.get("recommendations"):
-        doc.add_heading("Recommendations", level=1)
-        for i, rec in enumerate(analysis["recommendations"], 1):
+        h = doc.add_heading("RECOMMENDATIONS", level=1)
+        _style_heading(h)
+        for i, rec in enumerate(
+            analysis["recommendations"], 1
+        ):
             doc.add_paragraph(
                 f"{i}. {rec}",
                 style="List Number"
@@ -91,33 +116,39 @@ def generate_client_report(
 
     # Open Questions
     if analysis.get("open_questions"):
-        doc.add_heading("Open Questions", level=1)
+        h = doc.add_heading("OPEN QUESTIONS", level=1)
+        _style_heading(h)
         for q in analysis["open_questions"]:
-            doc.add_paragraph(f"• {q}")
+            doc.add_paragraph(f"- {q}")
         doc.add_paragraph()
 
-    # Additional Notes
-    if analysis.get("notes") or client.get("notes"):
-        doc.add_heading("Additional Notes", level=1)
-        doc.add_paragraph(
-            analysis.get("notes") or client.get("notes", "")
-        )
+    # Notes
+    notes = analysis.get("notes") or client.get("notes")
+    if notes:
+        h = doc.add_heading("ADDITIONAL NOTES", level=1)
+        _style_heading(h)
+        doc.add_paragraph(str(notes))
+        doc.add_paragraph()
 
     # Footer
     doc.add_paragraph()
-    footer_text = doc.add_paragraph(
-        "This report was generated by AI CRM Agent. "
+    footer = doc.add_paragraph(
+        "This report was generated by ARIA AI CRM. "
         "Please verify all information before use."
     )
-    footer_text.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    footer.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    if footer.runs:
+        footer.runs[0].italic = True
+        footer.runs[0].font.size = Pt(9)
+        footer.runs[0].font.color.rgb = LIGHT
 
-    # Save to bytes
     buffer = io.BytesIO()
     doc.save(buffer)
     buffer.seek(0)
-
-    logger.info(f"Generated report for client: {client.get('client_id')}")
-
+    logger.info(
+        f"Client report generated: "
+        f"{client.get('client_id')}"
+    )
     return buffer.getvalue()
 
 
@@ -128,99 +159,117 @@ def generate_pipeline_report(
     """Generate a pipeline summary Word document"""
     doc = Document()
 
-    # Title
-    title = doc.add_heading("Pipeline Summary Report", 0)
+    for section in doc.sections:
+        section.top_margin = Inches(1)
+        section.bottom_margin = Inches(1)
+        section.left_margin = Inches(1.2)
+        section.right_margin = Inches(1.2)
+
+    title = doc.add_heading("PIPELINE SUMMARY REPORT", 0)
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    _style_heading(title, TEAL)
 
     subtitle = doc.add_paragraph(
-        f"Generated: {datetime.now().strftime('%B %d, %Y %I:%M %p')}"
+        f"Generated: "
+        f"{datetime.now().strftime('%B %d, %Y at %I:%M %p')}"
     )
     subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
-
+    if subtitle.runs:
+        subtitle.runs[0].italic = True
+        subtitle.runs[0].font.color.rgb = LIGHT
     doc.add_paragraph()
 
-    # Overview stats
-    doc.add_heading("Overview", level=1)
-
-    stats_table = doc.add_table(rows=0, cols=2)
-    stats_table.style = "Table Grid"
-
-    stats = [
-        ("Total Clients", str(summary.get("total_clients", 0))),
-        ("High Priority Pending", str(summary.get("high_priority_pending_count", 0))),
+    # Overview
+    h = doc.add_heading("OVERVIEW", level=1)
+    _style_heading(h)
+    active = [
+        c for c in clients
+        if c.get("stage") not in ["Won", "Lost"]
     ]
+    won = [c for c in clients if c.get("stage") == "Won"]
+    lost = [c for c in clients if c.get("stage") == "Lost"]
 
-    for label, value in stats:
-        row = stats_table.add_row().cells
-        row[0].text = label
-        row[1].text = value
-        row[0].paragraphs[0].runs[0].bold = True
-
-    doc.add_paragraph()
+    _add_kv_table(doc, [
+        ("Total Clients",
+         str(summary.get("total_clients", 0))),
+        ("Active Pipeline", str(len(active))),
+        ("Won", str(len(won))),
+        ("Lost", str(len(lost))),
+        ("High Priority Pending",
+         str(summary.get(
+             "high_priority_pending_count", 0
+         )))
+    ])
 
     # Stage breakdown
-    doc.add_heading("Pipeline by Stage", level=1)
-
-    stage_table = doc.add_table(rows=0, cols=2)
+    h = doc.add_heading("PIPELINE BY STAGE", level=1)
+    _style_heading(h)
+    stage_table = doc.add_table(rows=0, cols=3)
     stage_table.style = "Table Grid"
+    hdr = stage_table.add_row().cells
+    for i, txt in enumerate(["Stage", "Count", "%"]):
+        hdr[i].text = txt
+        if hdr[i].paragraphs[0].runs:
+            hdr[i].paragraphs[0].runs[0].bold = True
 
-    header_row = stage_table.add_row().cells
-    header_row[0].text = "Stage"
-    header_row[1].text = "Count"
-    header_row[0].paragraphs[0].runs[0].bold = True
-    header_row[1].paragraphs[0].runs[0].bold = True
-
-    for stage, count in summary.get("stage_counts", {}).items():
+    total = summary.get("total_clients", 1) or 1
+    for stage, count in summary.get(
+        "stage_counts", {}
+    ).items():
         row = stage_table.add_row().cells
         row[0].text = stage
         row[1].text = str(count)
-
+        row[2].text = f"{round(count/total*100, 1)}%"
     doc.add_paragraph()
 
-    # High priority clients
-    if summary.get("high_priority_pending_clients"):
-        doc.add_heading("High Priority Pending Clients", level=1)
-
+    # High priority
+    hp = summary.get("high_priority_pending_clients", [])
+    if hp:
+        h = doc.add_heading(
+            "HIGH PRIORITY CLIENTS", level=1
+        )
+        _style_heading(h)
         hp_table = doc.add_table(rows=0, cols=4)
         hp_table.style = "Table Grid"
-
-        header = hp_table.add_row().cells
-        for i, h in enumerate(["Client ID", "Name", "Company", "Stage"]):
-            header[i].text = h
-            header[i].paragraphs[0].runs[0].bold = True
-
-        for c in summary["high_priority_pending_clients"]:
+        hdr = hp_table.add_row().cells
+        for i, txt in enumerate(
+            ["Client ID", "Name", "Company", "Stage"]
+        ):
+            hdr[i].text = txt
+            if hdr[i].paragraphs[0].runs:
+                hdr[i].paragraphs[0].runs[0].bold = True
+        for c in hp:
             row = hp_table.add_row().cells
             row[0].text = c.get("client_id", "")
             row[1].text = c.get("name", "")
             row[2].text = c.get("company", "")
             row[3].text = c.get("stage", "")
+        doc.add_paragraph()
 
-    doc.add_paragraph()
-
-    # All clients table
-    doc.add_heading("All Active Clients", level=1)
-
-    all_table = doc.add_table(rows=0, cols=5)
-    all_table.style = "Table Grid"
-
-    header = all_table.add_row().cells
-    for i, h in enumerate(["Name", "Company", "Email", "Priority", "Stage"]):
-        header[i].text = h
-        header[i].paragraphs[0].runs[0].bold = True
-
-    for c in clients:
-        row = all_table.add_row().cells
-        row[0].text = c.get("name", "")
-        row[1].text = c.get("company", "")
-        row[2].text = c.get("email", "")
-        row[3].text = c.get("priority", "")
-        row[4].text = c.get("stage", "")
+    # All clients
+    if clients:
+        h = doc.add_heading("ALL CLIENTS", level=1)
+        _style_heading(h)
+        all_table = doc.add_table(rows=0, cols=5)
+        all_table.style = "Table Grid"
+        hdr = all_table.add_row().cells
+        for i, txt in enumerate(
+            ["Name", "Company", "Email",
+             "Priority", "Stage"]
+        ):
+            hdr[i].text = txt
+            if hdr[i].paragraphs[0].runs:
+                hdr[i].paragraphs[0].runs[0].bold = True
+        for c in clients:
+            row = all_table.add_row().cells
+            row[0].text = c.get("name", "")
+            row[1].text = c.get("company", "")
+            row[2].text = c.get("email", "")
+            row[3].text = c.get("priority", "")
+            row[4].text = c.get("stage", "")
 
     buffer = io.BytesIO()
     doc.save(buffer)
     buffer.seek(0)
-
-    logger.info("Generated pipeline summary report")
-
+    logger.info("Pipeline report generated")
     return buffer.getvalue()

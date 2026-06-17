@@ -22,24 +22,6 @@
             <div class="status-dot">Connected</div>
             <button class="btn btn-secondary btn-sm" onclick="logout()">Sign Out</button>
         </div>
-        <div class="flex gap-2">
-            <button class="btn btn-secondary btn-sm"
-                onclick="startAutoRefresh();loadClients()"
-                id="liveRefreshBtn">
-                🔴 Live Refresh
-            </button>
-            <button class="btn btn-secondary btn-sm"
-                onclick="hardRefresh()">
-                ↻ Refresh
-            </button>
-            <a href="/aria/import" class="btn btn-secondary btn-sm">
-                📥 Bulk Import
-            </a>
-            <button class="btn btn-primary btn-sm"
-                onclick="openModal('addClientModal')">
-                + New Client
-            </button>
-        </div>
     </div>
     <div class="app-body">
         <div class="sidebar">
@@ -63,9 +45,7 @@
                 </div>
                 <div class="nav-section">
                     <div class="nav-section-label">Import</div>
-                    <a href="/aria/import" class="nav-item">
-                        <span class="nav-item-icon">📥</span>Bulk Import
-                    </a>
+                    <a href="/aria/import" class="nav-item"><span class="nav-item-icon">📥</span>Bulk Import</a>
                 </div>
             </nav>
             <div class="sidebar-footer">
@@ -83,10 +63,20 @@
                         <div class="page-subtitle" id="clientCount">Loading...</div>
                     </div>
                     <div class="flex gap-2">
-                        <button class="btn btn-secondary btn-sm" onclick="toggleArchived()">
-                            📦 <span id="archivedToggleLabel">Show Archived</span>
+                        <button class="btn btn-secondary btn-sm"
+                            onclick="toggleArchived()" id="archivedBtn">
+                            📦 Show Archived
                         </button>
-                        <button class="btn btn-primary btn-sm" onclick="openModal('addClientModal')">
+                        <button class="btn btn-secondary btn-sm"
+                            onclick="hardRefresh()">
+                            ↻ Refresh
+                        </button>
+                        <a href="/aria/import"
+                            class="btn btn-secondary btn-sm">
+                            📥 Import
+                        </a>
+                        <button class="btn btn-primary btn-sm"
+                            onclick="openModal('addClientModal')">
                             + New Client
                         </button>
                     </div>
@@ -98,13 +88,15 @@
                         class="input" style="flex:1;min-width:200px"
                         placeholder="Search by name, company, email..."
                         oninput="filterClients()">
-                    <select id="priorityFilter" class="input select" style="width:140px" onchange="filterClients()">
+                    <select id="priorityFilter" class="input select"
+                        style="width:140px" onchange="filterClients()">
                         <option value="">All Priorities</option>
                         <option value="High">High</option>
                         <option value="Medium">Medium</option>
                         <option value="Low">Low</option>
                     </select>
-                    <select id="stageFilter" class="input select" style="width:180px" onchange="filterClients()">
+                    <select id="stageFilter" class="input select"
+                        style="width:180px" onchange="filterClients()">
                         <option value="">All Stages</option>
                         <option value="New">New</option>
                         <option value="Contacted">Contacted</option>
@@ -113,7 +105,13 @@
                         <option value="Won">Won</option>
                         <option value="Lost">Lost</option>
                     </select>
-                    <button class="btn btn-secondary btn-sm" onclick="loadClients()">↻</button>
+                </div>
+
+                <!-- Error banner -->
+                <div id="errorBanner" class="alert alert-error mb-3 hidden">
+                    <span id="errorBannerMsg"></span>
+                    <button class="btn btn-secondary btn-sm ml-3"
+                        onclick="hardRefresh()">Retry</button>
                 </div>
 
                 <!-- Table -->
@@ -133,11 +131,29 @@
                         <tbody id="clientsTableBody">
                             <tr><td colspan="7">
                                 <div class="loading-overlay">
-                                    <div class="loading-spinner"></div>Loading...
+                                    <div class="loading-spinner"></div>
+                                    Loading clients...
                                 </div>
                             </td></tr>
                         </tbody>
                     </table>
+                </div>
+
+                <!-- Pagination -->
+                <div id="pagination" class="flex items-center
+                    justify-between mt-3 hidden">
+                    <div class="text-muted text-sm"
+                        id="paginationInfo"></div>
+                    <div class="flex gap-2">
+                        <button class="btn btn-secondary btn-sm"
+                            id="prevBtn" onclick="changePage(-1)">
+                            ← Prev
+                        </button>
+                        <button class="btn btn-secondary btn-sm"
+                            id="nextBtn" onclick="changePage(1)">
+                            Next →
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -149,33 +165,39 @@
     <div class="modal modal-lg">
         <div class="modal-header">
             <span class="modal-title">New Client</span>
-            <button class="btn btn-ghost btn-icon" onclick="closeModal('addClientModal')">✕</button>
+            <button class="btn btn-ghost btn-icon"
+                onclick="closeModal('addClientModal')">✕</button>
         </div>
         <div class="modal-body">
             <div class="input-row">
                 <div class="input-group">
                     <label class="input-label">Name *</label>
-                    <input id="newName" class="input" placeholder="Full name">
+                    <input id="newName" class="input"
+                        placeholder="Full name">
                 </div>
                 <div class="input-group">
                     <label class="input-label">Email</label>
-                    <input id="newEmail" type="email" class="input" placeholder="email@company.com">
+                    <input id="newEmail" type="email" class="input"
+                        placeholder="email@company.com">
                 </div>
             </div>
             <div class="input-row">
                 <div class="input-group">
                     <label class="input-label">Company</label>
-                    <input id="newCompany" class="input" placeholder="Company name">
+                    <input id="newCompany" class="input"
+                        placeholder="Company name">
                 </div>
                 <div class="input-group">
                     <label class="input-label">Phone</label>
-                    <input id="newPhone" class="input" placeholder="801-555-0000">
+                    <input id="newPhone" class="input"
+                        placeholder="801-555-0000">
                 </div>
             </div>
             <div class="input-row">
                 <div class="input-group">
                     <label class="input-label">Service</label>
-                    <input id="newService" class="input" placeholder="Service requested">
+                    <input id="newService" class="input"
+                        placeholder="Service requested">
                 </div>
                 <div class="input-group">
                     <label class="input-label">Follow-up Date</label>
@@ -196,7 +218,9 @@
                     <select id="newStage" class="input select">
                         <option value="New">New</option>
                         <option value="Contacted">Contacted</option>
-                        <option value="Consultation Scheduled">Consultation Scheduled</option>
+                        <option value="Consultation Scheduled">
+                            Consultation Scheduled
+                        </option>
                         <option value="Proposal Sent">Proposal Sent</option>
                         <option value="Won">Won</option>
                         <option value="Lost">Lost</option>
@@ -205,13 +229,20 @@
             </div>
             <div class="input-group">
                 <label class="input-label">Notes</label>
-                <textarea id="newNotes" class="input textarea" rows="3" placeholder="Additional notes..."></textarea>
+                <textarea id="newNotes" class="input textarea"
+                    rows="3"
+                    placeholder="Additional notes..."></textarea>
             </div>
-            <div id="addClientMsg" class="hidden"></div>
         </div>
         <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="closeModal('addClientModal')">Cancel</button>
-            <button class="btn btn-primary" onclick="createClient()" id="createClientBtn">Create Client</button>
+            <button class="btn btn-secondary"
+                onclick="closeModal('addClientModal')">
+                Cancel
+            </button>
+            <button class="btn btn-primary"
+                onclick="createClient()" id="createClientBtn">
+                Create Client
+            </button>
         </div>
     </div>
 </div>
@@ -220,8 +251,11 @@
 <div id="clientDetailModal" class="modal-overlay">
     <div class="modal modal-lg">
         <div class="modal-header">
-            <span class="modal-title" id="detailTitle">Client Details</span>
-            <button class="btn btn-ghost btn-icon" onclick="closeModal('clientDetailModal')">✕</button>
+            <span class="modal-title" id="detailTitle">
+                Client Details
+            </span>
+            <button class="btn btn-ghost btn-icon"
+                onclick="closeModal('clientDetailModal')">✕</button>
         </div>
         <div class="modal-body" id="detailBody"></div>
     </div>
@@ -233,103 +267,230 @@
 <script src="/static/js/utils.js"></script>
 <script src="/static/js/nav.js"></script>
 <script>
-function logout() { API.clear(); window.location.href = '/aria/'; }
-Nav.init();
-
-let allClients = [];
-let showArchived = false;
-
-async function hardRefresh() {
-    // Clear server cache then reload
-    try {
-        await API.post('/cache/clear', {});
-    } catch(e) {
-        // ignore
-    }
-    await loadClients();
-    Toast.info('Clients refreshed');
+function logout() {
+    API.clear();
+    window.location.href = '/aria/';
 }
 
+Nav.init();
+
+// ── State ──────────────────────────────────────────────
+let allClients = [];
+let filteredClients = [];
+let showArchived = false;
+let currentPage = 1;
+const PAGE_SIZE = 25;
+
+// ── Load ───────────────────────────────────────────────
 async function loadClients() {
-    try:
+    showError(null);
+    document.getElementById('clientsTableBody').innerHTML = `
+        <tr><td colspan="7">
+            <div class="loading-overlay">
+                <div class="loading-spinner"></div>
+                Loading clients...
+            </div>
+        </td></tr>
+    `;
+
+    try {
         const url = showArchived
-            ? '/clients?include_archived=true&limit=100'
-            : '/clients?limit=100';
+            ? '/clients?include_archived=true&limit=500'
+            : '/clients?limit=500';
         const res = await API.get(url);
         allClients = res.clients || [];
         document.getElementById('clientCount').textContent =
             `${allClients.length} clients`;
-        renderTable(allClients);
-    } catch(e) {
-        Toast.error('Failed to load clients: ' + e.message);
+        currentPage = 1;
+        filterClients();
+        Nav.loadSidebarStats();
+    } catch (e) {
+        showError('Failed to load clients: ' + e.message);
+        document.getElementById('clientsTableBody').innerHTML = `
+            <tr><td colspan="7">
+                <div class="empty-state">
+                    <div class="empty-state-icon">⚠️</div>
+                    <div class="empty-state-title">
+                        Could not load clients
+                    </div>
+                    <div class="empty-state-desc">
+                        ${escapeHtml(e.message)}
+                    </div>
+                    <button class="btn btn-secondary btn-sm mt-3"
+                        onclick="loadClients()">
+                        Try Again
+                    </button>
+                </div>
+            </td></tr>
+        `;
+    }
+}
+
+async function hardRefresh() {
+    try {
+        await API.post('/cache/clear', {});
+    } catch (e) { /* ignore */ }
+    await loadClients();
+    Toast.info('Refreshed');
+}
+
+function showError(msg) {
+    const el = document.getElementById('errorBanner');
+    if (msg) {
+        document.getElementById('errorBannerMsg').textContent = msg;
+        el.classList.remove('hidden');
+    } else {
+        el.classList.add('hidden');
     }
 }
 
 function toggleArchived() {
     showArchived = !showArchived;
-    document.getElementById('archivedToggleLabel').textContent =
-        showArchived ? 'Hide Archived' : 'Show Archived';
+    const btn = document.getElementById('archivedBtn');
+    btn.textContent = showArchived
+        ? '📦 Hide Archived'
+        : '📦 Show Archived';
     loadClients();
 }
 
+// ── Filter + Pagination ────────────────────────────────
 function filterClients() {
-    const q = document.getElementById('searchInput').value.toLowerCase();
+    const q = document.getElementById('searchInput')
+        .value.toLowerCase();
     const p = document.getElementById('priorityFilter').value;
     const s = document.getElementById('stageFilter').value;
 
-    const filtered = allClients.filter(c => {
-        const text = [c.name, c.company, c.email,
-            c.service, c.client_id].join(' ').toLowerCase();
+    filteredClients = allClients.filter(c => {
+        const text = [
+            c.name, c.company, c.email,
+            c.service, c.client_id, c.notes
+        ].join(' ').toLowerCase();
         return (!q || text.includes(q))
             && (!p || c.priority === p)
             && (!s || c.stage === s);
     });
 
-    renderTable(filtered);
+    currentPage = 1;
+    renderTable();
 }
 
-function renderTable(clients) {
+function changePage(dir) {
+    const totalPages = Math.ceil(
+        filteredClients.length / PAGE_SIZE
+    );
+    currentPage = Math.max(
+        1, Math.min(totalPages, currentPage + dir)
+    );
+    renderTable();
+    window.scrollTo(0, 0);
+}
+
+// ── Render ─────────────────────────────────────────────
+function renderTable() {
     const tbody = document.getElementById('clientsTableBody');
-    if (!clients.length) {
-        tbody.innerHTML = `<tr><td colspan="7">
-            <div class="empty-state">
-                <div class="empty-state-icon">👥</div>
-                <div class="empty-state-title">No clients found</div>
-                <div class="empty-state-desc">Add your first client to get started</div>
-            </div>
-        </td></tr>`;
+    const pagination = document.getElementById('pagination');
+
+    if (!filteredClients.length) {
+        tbody.innerHTML = `
+            <tr><td colspan="7">
+                <div class="empty-state">
+                    <div class="empty-state-icon">👥</div>
+                    <div class="empty-state-title">
+                        No clients found
+                    </div>
+                    <div class="empty-state-desc">
+                        Try adjusting your filters or add a new client
+                    </div>
+                </div>
+            </td></tr>
+        `;
+        pagination.classList.add('hidden');
         return;
     }
 
-    tbody.innerHTML = clients.map(c => `
-        <tr onclick="viewClient('${c.client_id}')">
+    const totalPages = Math.ceil(
+        filteredClients.length / PAGE_SIZE
+    );
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const page = filteredClients.slice(start, start + PAGE_SIZE);
+    const today = new Date().toISOString().split('T')[0];
+
+    tbody.innerHTML = page.map(c => {
+        const isOverdue = c.next_follow_up &&
+            c.next_follow_up < today;
+        const isArchived = c.archived === 'Yes';
+        return `
+        <tr onclick="viewClient('${escapeHtml(c.client_id)}')"
+            style="${isArchived ? 'opacity:0.5' : ''}">
             <td>
-                <div class="font-semibold">${escapeHtml(c.name)}</div>
-                <div class="text-muted text-xs">${escapeHtml(c.client_id)}</div>
+                <div class="font-semibold">
+                    ${escapeHtml(c.name)}
+                    ${isArchived ? '<span class="badge badge-error ml-1 text-xs">Archived</span>' : ''}
+                </div>
+                <div class="text-muted text-xs">
+                    ${escapeHtml(c.client_id)}
+                </div>
             </td>
             <td>${escapeHtml(c.company || '—')}</td>
-            <td class="text-xs text-secondary">${escapeHtml(c.service || '—')}</td>
+            <td class="text-xs text-secondary">
+                ${escapeHtml(c.service || '—')}
+            </td>
             <td>${priorityBadge(c.priority)}</td>
             <td>${stageBadge(c.stage)}</td>
-            <td class="text-xs ${c.next_follow_up && c.next_follow_up < new Date().toISOString().split('T')[0] ? 'text-error' : 'text-muted'}">
+            <td class="text-xs ${isOverdue ? 'text-error' : 'text-muted'}">
                 ${c.next_follow_up || '—'}
+                ${isOverdue ? ' ⚠️' : ''}
             </td>
             <td onclick="event.stopPropagation()">
                 <div class="flex gap-1">
-                    <button class="btn btn-ghost btn-icon btn-sm" title="Score"
-                        onclick="quickScore('${c.client_id}')">🎯</button>
-                    <button class="btn btn-ghost btn-icon btn-sm" title="Report"
-                        onclick="quickReport('${c.client_id}')">📄</button>
-                    <button class="btn btn-ghost btn-icon btn-sm" title="Email"
-                        onclick="window.location='/aria/email?client=${c.client_id}'">📧</button>
-                    <button class="btn btn-ghost btn-icon btn-sm" title="Archive"
-                        onclick="archiveClient('${c.client_id}')">🗑</button>
+                    <button class="btn btn-ghost btn-icon btn-sm"
+                        title="Score"
+                        onclick="quickScore('${escapeHtml(c.client_id)}')">
+                        🎯
+                    </button>
+                    <button class="btn btn-ghost btn-icon btn-sm"
+                        title="Report"
+                        onclick="quickReport('${escapeHtml(c.client_id)}')">
+                        📄
+                    </button>
+                    <button class="btn btn-ghost btn-icon btn-sm"
+                        title="Email"
+                        onclick="window.location='/aria/email?client=${escapeHtml(c.client_id)}'">
+                        📧
+                    </button>
+                    ${isArchived
+                        ? `<button class="btn btn-ghost btn-icon btn-sm"
+                            title="Restore"
+                            onclick="restoreClient('${escapeHtml(c.client_id)}')">
+                            ♻️
+                          </button>`
+                        : `<button class="btn btn-ghost btn-icon btn-sm"
+                            title="Delete"
+                            onclick="deleteClient('${escapeHtml(c.client_id)}','${escapeHtml(c.name)}')">
+                            🗑
+                          </button>`
+                    }
                 </div>
             </td>
         </tr>
-    `).join('');
+        `;
+    }).join('');
+
+    // Pagination
+    if (totalPages > 1) {
+        pagination.classList.remove('hidden');
+        document.getElementById('paginationInfo').textContent =
+            `Showing ${start + 1}–${Math.min(start + PAGE_SIZE, filteredClients.length)} of ${filteredClients.length}`;
+        document.getElementById('prevBtn').disabled =
+            currentPage === 1;
+        document.getElementById('nextBtn').disabled =
+            currentPage === totalPages;
+    } else {
+        pagination.classList.add('hidden');
+    }
 }
 
+// ── Client Detail ──────────────────────────────────────
 async function viewClient(clientId) {
     try {
         const res = await API.get(`/clients/${clientId}`);
@@ -339,103 +500,184 @@ async function viewClient(clientId) {
 
         document.getElementById('detailBody').innerHTML = `
             <div class="grid-2 mb-4">
-                <div><div class="input-label">Company</div>
-                    <div>${escapeHtml(c.company || '—')}</div></div>
-                <div><div class="input-label">Email</div>
-                    <div>${escapeHtml(c.email || '—')}</div></div>
-                <div><div class="input-label">Phone</div>
-                    <div>${escapeHtml(c.phone || '—')}</div></div>
-                <div><div class="input-label">Service</div>
-                    <div>${escapeHtml(c.service || '—')}</div></div>
-                <div><div class="input-label">Priority</div>
-                    <div>${priorityBadge(c.priority)}</div></div>
-                <div><div class="input-label">Stage</div>
-                    <select onchange="updateStage('${c.client_id}', this.value)"
+                <div>
+                    <div class="input-label">Company</div>
+                    <div>${escapeHtml(c.company || '—')}</div>
+                </div>
+                <div>
+                    <div class="input-label">Email</div>
+                    <div>${escapeHtml(c.email || '—')}</div>
+                </div>
+                <div>
+                    <div class="input-label">Phone</div>
+                    <div>${escapeHtml(c.phone || '—')}</div>
+                </div>
+                <div>
+                    <div class="input-label">Service</div>
+                    <div>${escapeHtml(c.service || '—')}</div>
+                </div>
+                <div>
+                    <div class="input-label">Priority</div>
+                    <div>${priorityBadge(c.priority)}</div>
+                </div>
+                <div>
+                    <div class="input-label">Stage</div>
+                    <select
+                        onchange="updateStage('${escapeHtml(c.client_id)}', this.value)"
                         class="input select" style="width:100%">
-                        ${['New','Contacted','Consultation Scheduled',
-                           'Proposal Sent','Won','Lost'].map(s =>
-                            `<option ${s===c.stage?'selected':''} value="${s}">${s}</option>`
-                        ).join('')}
-                    </select></div>
-                <div><div class="input-label">Next Follow-up</div>
-                    <div>${c.next_follow_up || '—'}</div></div>
-                <div><div class="input-label">Created</div>
-                    <div>${formatDate(c.created_at)}</div></div>
-                <div class="col-span-2" style="grid-column:1/-1">
+                        ${['New','Contacted',
+                           'Consultation Scheduled',
+                           'Proposal Sent','Won','Lost'
+                          ].map(s => `
+                            <option
+                                ${s === c.stage ? 'selected' : ''}
+                                value="${s}">${s}
+                            </option>
+                        `).join('')}
+                    </select>
+                </div>
+                <div>
+                    <div class="input-label">Next Follow-up</div>
+                    <div>${c.next_follow_up || '—'}</div>
+                </div>
+                <div>
+                    <div class="input-label">Created</div>
+                    <div>${formatDate(c.created_at)}</div>
+                </div>
+                <div style="grid-column:1/-1">
                     <div class="input-label">Notes</div>
-                    <div class="text-secondary">${escapeHtml(c.notes || '—')}</div>
+                    <div class="text-secondary">
+                        ${escapeHtml(c.notes || '—')}
+                    </div>
                 </div>
             </div>
             <div class="divider"></div>
             <div class="flex gap-2" style="flex-wrap:wrap">
                 <button class="btn btn-secondary btn-sm"
-                    onclick="quickScore('${c.client_id}')">
+                    onclick="quickScore('${escapeHtml(c.client_id)}')">
                     🎯 Score
                 </button>
                 <button class="btn btn-secondary btn-sm"
-                    onclick="quickReport('${c.client_id}')">
+                    onclick="quickReport('${escapeHtml(c.client_id)}')">
                     📄 Report
                 </button>
                 <button class="btn btn-secondary btn-sm"
-                    onclick="viewActivity('${c.client_id}')">
+                    onclick="viewActivity('${escapeHtml(c.client_id)}')">
                     📋 Activity
                 </button>
                 <button class="btn btn-secondary btn-sm"
-                    onclick="viewAudit('${c.client_id}')">
+                    onclick="viewAudit('${escapeHtml(c.client_id)}')">
                     🔄 Audit Trail
                 </button>
                 <button class="btn btn-secondary btn-sm"
-                    onclick="rollbackClient('${c.client_id}')">
+                    onclick="rollbackClient('${escapeHtml(c.client_id)}')">
                     ↩ Rollback Last
                 </button>
                 <button class="btn btn-danger btn-sm"
-                    onclick="archiveClient('${c.client_id}')">
-                    🗑 Archive
+                    onclick="deleteClient('${escapeHtml(c.client_id)}','${escapeHtml(c.name)}')">
+                    🗑 Delete
                 </button>
             </div>
             <div id="detailResult" class="mt-3"></div>
         `;
         openModal('clientDetailModal');
-    } catch(e) {
-        Toast.error('Failed to load client');
+    } catch (e) {
+        Toast.error('Failed to load client: ' + e.message);
     }
 }
 
+// ── Actions ────────────────────────────────────────────
 async function updateStage(clientId, stage) {
     try {
         await API.put(`/clients/${clientId}/stage`, { stage });
-        Toast.success('Stage updated');
+        Toast.success('Stage updated to ' + stage);
         await loadClients();
-    } catch(e) {
-        Toast.error('Failed to update stage');
+    } catch (e) {
+        Toast.error('Failed: ' + e.message);
     }
 }
 
-async function archiveClient(clientId) {
-    if (!confirm('Archive this client?')) return;
+async function deleteClient(clientId, name) {
+    if (!confirm(
+        `Delete "${name}"?\n\nThis will permanently remove them from the CRM.\nYou can undo this in the ARIA chat by saying "undo delete".`
+    )) return;
+
     try {
-        await API.delete(`/clients/${clientId}`);
-        Toast.success('Client archived');
+        await API.delete(`/clients/${clientId}/permanent`);
+        Toast.success(`${name} deleted`);
         closeModal('clientDetailModal');
         await loadClients();
-    } catch(e) {
-        Toast.error('Failed to archive client');
+    } catch (e) {
+        Toast.error('Delete failed: ' + e.message);
+    }
+}
+
+async function restoreClient(clientId) {
+    try {
+        await API.post(`/clients/${clientId}/restore`);
+        Toast.success('Client restored');
+        closeModal('clientDetailModal');
+        await loadClients();
+    } catch (e) {
+        Toast.error('Restore failed: ' + e.message);
     }
 }
 
 async function quickScore(clientId) {
     try {
-        Toast.info('Scoring client...');
+        Toast.info('Scoring...');
         const res = await API.get(`/clients/${clientId}/score`);
         const s = res.score;
-        alert(
-            `🎯 Lead Score: ${s.lead_score}/10\n` +
-            `⚠️ Churn Risk: ${s.churn_risk}\n` +
-            `📈 Close Probability: ${s.estimated_close_probability}%\n` +
-            `✅ Next Action: ${s.best_next_action}\n\n` +
-            `Summary: ${s.summary}`
-        );
-    } catch(e) {
+        const el = document.getElementById('detailResult');
+        const content = `
+            <div class="divider"></div>
+            <div class="grid-2" style="gap:12px">
+                <div class="stat-card">
+                    <div class="stat-value">${s.lead_score}/10</div>
+                    <div class="stat-label">Lead Score</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" style="font-size:20px">
+                        ${s.estimated_close_probability}%
+                    </div>
+                    <div class="stat-label">Close Probability</div>
+                </div>
+            </div>
+            <div class="card card-p mt-3">
+                <div class="flex gap-4 mb-2">
+                    <div>
+                        <div class="input-label">Churn Risk</div>
+                        <span class="badge ${s.churn_risk==='High'?'badge-high':s.churn_risk==='Medium'?'badge-medium':'badge-low'}">
+                            ${escapeHtml(s.churn_risk)}
+                        </span>
+                    </div>
+                    <div>
+                        <div class="input-label">Sentiment</div>
+                        <span class="badge badge-stage">
+                            ${escapeHtml(s.sentiment)}
+                        </span>
+                    </div>
+                </div>
+                <div class="input-label">Best Next Action</div>
+                <div class="text-secondary mb-2">
+                    ${escapeHtml(s.best_next_action)}
+                </div>
+                <div class="input-label">Summary</div>
+                <div class="text-secondary text-sm">
+                    ${escapeHtml(s.summary)}
+                </div>
+            </div>
+        `;
+        if (el) {
+            el.innerHTML = content;
+        } else {
+            Toast.info(
+                `Score: ${s.lead_score}/10 | ` +
+                `Churn: ${s.churn_risk} | ` +
+                `Close: ${s.estimated_close_probability}%`
+            );
+        }
+    } catch (e) {
         Toast.error('Scoring failed: ' + e.message);
     }
 }
@@ -443,58 +685,86 @@ async function quickScore(clientId) {
 async function quickReport(clientId) {
     try {
         Toast.info('Generating report...');
-        const blob = await API.blob('POST', `/clients/${clientId}/report`);
+        const blob = await API.blob(
+            'POST', `/clients/${clientId}/report`
+        );
         downloadBlob(blob, `report_${clientId}.docx`);
         Toast.success('Report downloaded!');
-    } catch(e) {
+    } catch (e) {
         Toast.error('Report failed: ' + e.message);
     }
 }
 
 async function viewActivity(clientId) {
     try {
-        const res = await API.get(`/clients/${clientId}/activity`);
+        const res = await API.get(
+            `/clients/${clientId}/activity`
+        );
         const acts = res.activities || [];
         const el = document.getElementById('detailResult');
+        if (!el) return;
         el.innerHTML = `
             <div class="divider"></div>
-            <div class="card-title mb-2">Activity Timeline (${acts.length})</div>
+            <div class="card-title mb-2">
+                Activity (${acts.length})
+            </div>
             <div style="max-height:200px;overflow-y:auto">
-                ${acts.map(a => `
-                    <div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
-                        <span class="text-muted">${formatDateTime(a.timestamp)}</span>
-                        <span class="badge badge-stage ml-2">${escapeHtml(a.type)}</span>
-                        <span class="text-secondary ml-2">${escapeHtml(a.description)}</span>
+                ${acts.length ? acts.map(a => `
+                    <div style="padding:6px 0;
+                        border-bottom:1px solid var(--border);
+                        font-size:12px">
+                        <span class="text-muted">
+                            ${formatDateTime(a.timestamp)}
+                        </span>
+                        <span class="badge badge-stage ml-2">
+                            ${escapeHtml(a.type)}
+                        </span>
+                        <span class="text-secondary ml-2">
+                            ${escapeHtml(a.description)}
+                        </span>
                     </div>
-                `).join('') || '<div class="text-muted">No activity yet</div>'}
+                `).join('') : '<div class="text-muted">No activity</div>'}
             </div>
         `;
-    } catch(e) {
+    } catch (e) {
         Toast.error('Failed to load activity');
     }
 }
 
 async function viewAudit(clientId) {
     try {
-        const res = await API.get(`/clients/${clientId}/audit`);
+        const res = await API.get(
+            `/clients/${clientId}/audit`
+        );
         const history = res.history || [];
         const el = document.getElementById('detailResult');
+        if (!el) return;
         el.innerHTML = `
             <div class="divider"></div>
-            <div class="card-title mb-2">Audit Trail (${history.length} changes)</div>
+            <div class="card-title mb-2">
+                Audit Trail (${history.length})
+            </div>
             <div style="max-height:200px;overflow-y:auto">
-                ${history.map(h => `
-                    <div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
-                        <span class="text-muted">${formatDateTime(h.timestamp)}</span>
-                        <span class="text-accent ml-2">${escapeHtml(h.field)}</span>
+                ${history.length ? history.map(h => `
+                    <div style="padding:6px 0;
+                        border-bottom:1px solid var(--border);
+                        font-size:12px">
+                        <span class="text-muted">
+                            ${formatDateTime(h.timestamp)}
+                        </span>
+                        <span class="text-accent ml-2">
+                            ${escapeHtml(h.field)}
+                        </span>
                         <span class="text-muted ml-1">
-                            ${escapeHtml(h.old_value)} → ${escapeHtml(h.new_value)}
+                            ${escapeHtml(String(h.old_value))}
+                            →
+                            ${escapeHtml(String(h.new_value))}
                         </span>
                     </div>
-                `).join('') || '<div class="text-muted">No changes recorded</div>'}
+                `).join('') : '<div class="text-muted">No changes</div>'}
             </div>
         `;
-    } catch(e) {
+    } catch (e) {
         Toast.error('Failed to load audit trail');
     }
 }
@@ -502,11 +772,15 @@ async function viewAudit(clientId) {
 async function rollbackClient(clientId) {
     if (!confirm('Rollback last change for this client?')) return;
     try {
-        const res = await API.post(`/clients/${clientId}/rollback`);
-        Toast.success(`Rolled back: ${res.field} → ${res.rolled_back_to}`);
+        const res = await API.post(
+            `/clients/${clientId}/rollback`
+        );
+        Toast.success(
+            `Rolled back: ${res.field} → ${res.rolled_back_to}`
+        );
         closeModal('clientDetailModal');
         await loadClients();
-    } catch(e) {
+    } catch (e) {
         Toast.error('Rollback failed: ' + e.message);
     }
 }
@@ -524,44 +798,49 @@ async function createClient() {
     try {
         const data = {
             name,
-            email: document.getElementById('newEmail').value.trim() || null,
-            company: document.getElementById('newCompany').value.trim() || null,
-            phone: document.getElementById('newPhone').value.trim() || null,
-            service: document.getElementById('newService').value.trim() || null,
+            email: document.getElementById('newEmail')
+                .value.trim() || null,
+            company: document.getElementById('newCompany')
+                .value.trim() || null,
+            phone: document.getElementById('newPhone')
+                .value.trim() || null,
+            service: document.getElementById('newService')
+                .value.trim() || null,
             priority: document.getElementById('newPriority').value,
             stage: document.getElementById('newStage').value,
-            notes: document.getElementById('newNotes').value.trim() || null
+            notes: document.getElementById('newNotes')
+                .value.trim() || null
         };
 
         const res = await API.post('/clients', data);
 
         if (res.ok) {
-            Toast.success(`Client created: ${res.client.client_id}`);
+            Toast.success(
+                `Client created: ${res.client.client_id}`
+            );
             closeModal('addClientModal');
-            await loadClients();
-            // Clear form
-            ['newName','newEmail','newCompany','newPhone',
-             'newService','newNotes'].forEach(id => {
+            ['newName','newEmail','newCompany',
+             'newPhone','newService','newNotes'
+            ].forEach(id => {
                 document.getElementById(id).value = '';
             });
+            await loadClients();
         } else {
-            Toast.error(res.detail || 'Failed to create client');
+            Toast.error(res.detail || 'Failed to create');
         }
-    } catch(e) {
+    } catch (e) {
         Toast.error(e.message);
     } finally {
         setLoading(btn, false);
     }
 }
 
-// Live refresh every 5 seconds if import might be running
+// ── Auto-refresh ───────────────────────────────────────
 let autoRefreshInterval = null;
 
 function startAutoRefresh() {
     if (autoRefreshInterval) return;
-    autoRefreshInterval = setInterval(async () => {
-        await loadClients();
-    }, 5000);
+    autoRefreshInterval = setInterval(loadClients, 5000);
 }
 
 function stopAutoRefresh() {
@@ -571,13 +850,12 @@ function stopAutoRefresh() {
     }
 }
 
-// Start auto-refresh if came from import page
 if (document.referrer.includes('/aria/import')) {
     startAutoRefresh();
-    // Stop after 2 minutes
     setTimeout(stopAutoRefresh, 120000);
 }
 
+// ── Init ───────────────────────────────────────────────
 loadClients();
 </script>
 </body>

@@ -10,41 +10,94 @@
 </head>
 <body>
 <div class="app-layout">
+
+    <!-- Topbar -->
     <div class="topbar">
         <div class="topbar-brand">
-            <div class="topbar-logo">🤖</div>
-            <div><div class="topbar-title">ARIA</div>
-                <div class="topbar-subtitle">AI Relationship Intelligence</div></div>
+            <div class="topbar-logo">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"
+                     stroke="currentColor" stroke-width="1.5">
+                    <circle cx="10" cy="10" r="3"/>
+                    <path stroke-linecap="round"
+                        d="M10 2v2m0 12v2M2 10h2m12 0h2
+                           M4.93 4.93l1.41 1.41m7.32 7.32l1.41 1.41
+                           M4.93 15.07l1.41-1.41m7.32-7.32l1.41-1.41"/>
+                </svg>
+            </div>
+            <div>
+                <div class="topbar-title">ARIA</div>
+                <div class="topbar-subtitle">AI Relationship Intelligence</div>
+            </div>
         </div>
         <div class="topbar-right">
-            <div class="status-dot">Connected</div>
-            <button class="btn btn-secondary btn-sm" onclick="logout()">Sign Out</button>
+            <div class="status-badge">
+                <span class="status-badge-dot"></span>
+                Connected
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="Nav.logout()">
+                <svg width="15" height="15" viewBox="0 0 20 20" fill="none"
+                     stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0
+                           01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3
+                           3 0 013 3v1"/>
+                </svg>
+                Sign Out
+            </button>
         </div>
     </div>
+
     <div class="app-body">
+
+        <!-- Sidebar -->
         <div class="sidebar">
             <nav class="sidebar-nav">
                 <div class="nav-section">
                     <div class="nav-section-label">Main</div>
-                    <a href="/aria/dashboard" class="nav-item"><span class="nav-item-icon">📊</span>Dashboard</a>
-                    <a href="/aria/clients" class="nav-item"><span class="nav-item-icon">👥</span>Clients</a>
-                    <a href="/aria/chat" class="nav-item"><span class="nav-item-icon">💬</span>Chat with ARIA</a>
+                    <a href="/aria/dashboard" class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="13" y="3" width="4" height="4" rx="1"/><rect x="13" y="10" width="4" height="7" rx="1"/><rect x="3" y="13" width="7" height="4" rx="1"/></svg>
+                        Dashboard
+                    </a>
+                    <a href="/aria/clients" class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20H7m10 0v-2a4 4 0 00-4-4H7a4 4 0 00-4 4v2m14-10a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                        Clients
+                    </a>
+                    <a href="/aria/chat" class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                        Chat with ARIA
+                    </a>
                 </div>
                 <div class="nav-section">
                     <div class="nav-section-label">Tools</div>
-                    <a href="/aria/calendar" class="nav-item"><span class="nav-item-icon">📅</span>Calendar</a>
-                    <a href="/aria/email" class="nav-item active"><span class="nav-item-icon">📧</span>Email</a>
-                    <a href="/aria/reports" class="nav-item"><span class="nav-item-icon">📄</span>Reports</a>
+                    <a href="/aria/calendar" class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                        Calendar
+                    </a>
+                    <a href="/aria/email" class="nav-item active">
+                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                        Email
+                    </a>
+                    <a href="/aria/reports" class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        Reports
+                    </a>
                 </div>
                 <div class="nav-section">
                     <div class="nav-section-label">Intelligence</div>
-                    <a href="/aria/intel" class="nav-item"><span class="nav-item-icon">🧠</span>Intelligence</a>
-                    <a href="/aria/search" class="nav-item"><span class="nav-item-icon">🔍</span>Smart Search</a>
+                    <a href="/aria/intel" class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path stroke-linecap="round" d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                        Intelligence
+                    </a>
+                    <a href="/aria/search" class="nav-item">
+                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
+                        Smart Search
+                    </a>
                 </div>
                 <div class="nav-section">
-                    <div class="nav-section-label">Import</div>
+                    <div class="nav-section-label">Data</div>
                     <a href="/aria/import" class="nav-item">
-                        <span class="nav-item-icon">📥</span>Bulk Import
+                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        Bulk Import
                     </a>
                 </div>
             </nav>
@@ -55,43 +108,120 @@
             </div>
         </div>
 
+        <!-- Main -->
         <div class="main-content">
             <div class="page">
+
                 <div class="page-header">
                     <div>
-                        <div class="page-title">Email</div>
-                        <div class="page-subtitle">Send emails and manage Gmail drafts</div>
+                        <h1 class="page-title">Email</h1>
+                        <p class="page-subtitle">
+                            Send emails and manage Gmail drafts
+                        </p>
                     </div>
-                    <button class="btn btn-primary btn-sm" onclick="openModal('composeModal')">
-                        + Compose
+                    <button class="btn btn-primary btn-sm"
+                        onclick="openModal('composeModal')">
+                        <svg width="15" height="15" viewBox="0 0 20 20"
+                             fill="none" stroke="currentColor"
+                             stroke-width="1.5">
+                            <path stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="M12 4v16m8-8H4"/>
+                        </svg>
+                        Compose
                     </button>
                 </div>
 
                 <div class="grid-2">
+
                     <!-- AI Draft -->
                     <div class="card">
                         <div class="card-header">
-                            <span class="card-title">🤖 AI Draft Email</span>
+                            <span class="card-title">AI Draft Email</span>
+                            <div class="flex items-center gap-2">
+                                <div class="stat-icon"
+                                     style="width:28px;height:28px;margin:0">
+                                    <svg width="14" height="14"
+                                         viewBox="0 0 20 20" fill="none"
+                                         stroke="currentColor"
+                                         stroke-width="1.5">
+                                        <circle cx="10" cy="10" r="3"/>
+                                        <path stroke-linecap="round"
+                                            d="M10 2v2m0 12v2M2 10h2m12 0h2
+                                               M4.93 4.93l1.41 1.41m7.32 7.32
+                                               l1.41 1.41M4.93 15.07l1.41-1.41
+                                               m7.32-7.32l1.41-1.41"/>
+                                    </svg>
+                                </div>
+                                <span class="text-xs text-muted">
+                                    AI-powered
+                                </span>
+                            </div>
                         </div>
                         <div class="card-body">
                             <div class="input-group">
-                                <label class="input-label">Client ID</label>
-                                <input id="aiClientId" class="input" placeholder="CL-XXXXXXXX"
-                                    value="${new URLSearchParams(window.location.search).get('client') || ''}">
+                                <label class="input-label"
+                                       for="aiClientId">
+                                    Client ID
+                                </label>
+                                <div class="input-with-icon">
+                                    <svg class="input-icon"
+                                         viewBox="0 0 20 20" fill="none"
+                                         stroke="currentColor"
+                                         stroke-width="1.5">
+                                        <path stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            d="M17 20H7m10 0v-2a4 4 0
+                                               00-4-4H7a4 4 0 00-4 4v2m14-10
+                                               a4 4 0 11-8 0 4 4 0 018 0z"/>
+                                    </svg>
+                                    <input id="aiClientId"
+                                        class="input"
+                                        placeholder="CL-XXXXXXXX"
+                                        autocomplete="off">
+                                </div>
                             </div>
                             <div class="input-group">
-                                <label class="input-label">Instructions</label>
-                                <textarea id="aiInstruction" class="input textarea" rows="4"
+                                <label class="input-label"
+                                       for="aiInstruction">
+                                    Instructions
+                                </label>
+                                <textarea id="aiInstruction"
+                                    class="input textarea"
+                                    rows="4"
                                     placeholder="e.g. Write a follow-up email thanking them for the meeting and outlining next steps..."></textarea>
                             </div>
                             <div class="flex gap-2">
-                                <button class="btn btn-secondary" style="flex:1"
-                                    onclick="aiDraftEmail(false)" id="draftBtn">
-                                    💾 Save as Draft
+                                <button class="btn btn-secondary"
+                                    style="flex:1"
+                                    onclick="aiDraftEmail(false)"
+                                    id="draftBtn">
+                                    <svg width="15" height="15"
+                                         viewBox="0 0 20 20" fill="none"
+                                         stroke="currentColor"
+                                         stroke-width="1.5">
+                                        <path stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            d="M8 7H5a2 2 0 00-2 2v9a2 2
+                                               0 002 2h14a2 2 0 002-2V9a2
+                                               2 0 00-2-2h-3m-1 4l-3 3m0
+                                               0l-3-3m3 3V4"/>
+                                    </svg>
+                                    Save Draft
                                 </button>
-                                <button class="btn btn-primary" style="flex:1"
-                                    onclick="aiDraftEmail(true)" id="sendBtn">
-                                    🚀 Draft & Send
+                                <button class="btn btn-primary"
+                                    style="flex:1"
+                                    onclick="aiDraftEmail(true)"
+                                    id="aiSendBtn">
+                                    <svg width="15" height="15"
+                                         viewBox="0 0 20 20" fill="none"
+                                         stroke="currentColor"
+                                         stroke-width="1.5">
+                                        <path stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                                    </svg>
+                                    Draft + Send
                                 </button>
                             </div>
                             <div id="aiResult" class="mt-3 hidden"></div>
@@ -101,15 +231,32 @@
                     <!-- Gmail Drafts -->
                     <div class="card">
                         <div class="card-header">
-                            <span class="card-title">📬 Gmail Drafts</span>
-                            <button class="btn btn-ghost btn-sm" onclick="loadDrafts()">↻ Refresh</button>
+                            <span class="card-title">Gmail Drafts</span>
+                            <button class="btn btn-ghost btn-sm"
+                                onclick="loadDrafts()"
+                                aria-label="Refresh drafts">
+                                <svg width="14" height="14"
+                                     viewBox="0 0 20 20" fill="none"
+                                     stroke="currentColor" stroke-width="1.5">
+                                    <path stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        d="M4 4v5h5M16 16v-5h-5"/>
+                                    <path stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        d="M20.49 9A9 9 0 005.64 5.64L4
+                                           8m12 8l-1.64 2.36A9 9 0 013.51 11"/>
+                                </svg>
+                                Refresh
+                            </button>
                         </div>
                         <div class="card-body" id="draftsList">
                             <div class="loading-overlay">
-                                <div class="loading-spinner"></div>Loading...
+                                <div class="loading-spinner"></div>
+                                Loading drafts...
                             </div>
                         </div>
                     </div>
+
                 </div>
             </div>
         </div>
@@ -117,83 +264,165 @@
 </div>
 
 <!-- Compose Modal -->
-<div id="composeModal" class="modal-overlay">
+<div id="composeModal" class="modal-overlay"
+     role="dialog" aria-modal="true"
+     aria-labelledby="composeTitle">
     <div class="modal modal-md">
         <div class="modal-header">
-            <span class="modal-title">Compose Email</span>
-            <button class="btn btn-ghost btn-icon" onclick="closeModal('composeModal')">✕</button>
+            <span class="modal-title" id="composeTitle">
+                Compose Email
+            </span>
+            <button class="btn btn-ghost btn-icon btn-sm"
+                onclick="closeModal('composeModal')"
+                aria-label="Close">
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="none"
+                     stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
         </div>
         <div class="modal-body">
             <div class="input-group">
-                <label class="input-label">Client ID *</label>
-                <input id="compClientId" class="input" placeholder="CL-XXXXXXXX">
+                <label class="input-label" for="compClientId">
+                    Client ID *
+                </label>
+                <input id="compClientId" class="input"
+                    placeholder="CL-XXXXXXXX">
             </div>
             <div class="input-group">
-                <label class="input-label">To (override client email)</label>
-                <input id="compTo" type="email" class="input" placeholder="Optional override">
+                <label class="input-label" for="compTo">
+                    To — override client email (optional)
+                </label>
+                <input id="compTo" type="email" class="input"
+                    placeholder="Override recipient email">
             </div>
             <div class="input-group">
-                <label class="input-label">Subject *</label>
-                <input id="compSubject" class="input" placeholder="Email subject">
+                <label class="input-label" for="compSubject">
+                    Subject *
+                </label>
+                <input id="compSubject" class="input"
+                    placeholder="Email subject line">
             </div>
             <div class="input-group">
-                <label class="input-label">Body *</label>
-                <textarea id="compBody" class="input textarea" rows="6"
+                <label class="input-label" for="compBody">
+                    Body *
+                </label>
+                <textarea id="compBody"
+                    class="input textarea"
+                    rows="7"
                     placeholder="Email body..."></textarea>
             </div>
         </div>
         <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="sendCompose('draft')">💾 Save Draft</button>
-            <button class="btn btn-primary" onclick="sendCompose('send')" id="compSendBtn">🚀 Send</button>
+            <button class="btn btn-secondary"
+                onclick="sendCompose('draft')">
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="none"
+                     stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0
+                           002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+                </svg>
+                Save Draft
+            </button>
+            <button class="btn btn-primary"
+                onclick="sendCompose('send')"
+                id="compSendBtn">
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="none"
+                     stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                </svg>
+                Send Email
+            </button>
         </div>
     </div>
 </div>
 
 <div class="toast-container" id="toastContainer"></div>
+
 <script src="/static/js/api.js"></script>
 <script src="/static/js/utils.js"></script>
 <script src="/static/js/nav.js"></script>
 <script>
-function logout() { API.clear(); window.location.href = '/aria/'; }
 Nav.init();
 
-// Pre-fill client ID from URL param
-const urlParams = new URLSearchParams(window.location.search);
-const prefilledClient = urlParams.get('client');
-if (prefilledClient) {
-    document.getElementById('aiClientId').value = prefilledClient;
+// Pre-fill client from URL
+const _clientParam = new URLSearchParams(
+    window.location.search
+).get('client');
+if (_clientParam) {
+    document.getElementById('aiClientId').value = _clientParam;
 }
 
+// ── Drafts ─────────────────────────────────────────────
 async function loadDrafts() {
     const container = document.getElementById('draftsList');
-    container.innerHTML = '<div class="loading-overlay"><div class="loading-spinner"></div></div>';
+    container.innerHTML = `
+        <div class="loading-overlay">
+            <div class="loading-spinner"></div>
+        </div>
+    `;
 
     try {
-        const res = await API.get('/email/drafts?max_results=20');
+        const res    = await API.get('/email/drafts?max_results=20');
         const drafts = res.drafts || [];
 
         if (!drafts.length) {
-            container.innerHTML = '<div class="empty-state"><div class="empty-state-desc">No drafts in Gmail</div></div>';
+            container.innerHTML = `
+                <div class="empty-state" style="padding:32px">
+                    <div class="empty-state-icon">
+                        <svg viewBox="0 0 20 20" fill="none"
+                             stroke="currentColor" stroke-width="1.5">
+                            <path stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8
+                                   M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5
+                                   a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                        </svg>
+                    </div>
+                    <div class="empty-state-desc">No drafts in Gmail</div>
+                </div>
+            `;
             return;
         }
 
         container.innerHTML = drafts.map(d => `
             <div class="flex items-center justify-between"
-                style="padding:10px 0;border-bottom:1px solid var(--border)">
+                 style="padding:11px 0;
+                        border-bottom:1px solid var(--border)">
                 <div style="min-width:0;flex:1">
                     <div class="font-semibold text-sm truncate">
                         ${escapeHtml(d.subject || 'No subject')}
                     </div>
-                    <div class="text-muted text-xs">
+                    <div class="text-muted text-xs mt-1">
                         To: ${escapeHtml(d.to || '—')}
                     </div>
                 </div>
                 <button class="btn btn-danger btn-sm ml-3"
-                    onclick="deleteDraft('${d.draft_id}')">🗑</button>
+                    onclick="deleteDraft('${escapeHtml(d.draft_id)}')"
+                    aria-label="Delete draft">
+                    <svg width="13" height="13" viewBox="0 0 20 20"
+                         fill="none" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862
+                               a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4
+                               a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                </button>
             </div>
         `).join('');
-    } catch(e) {
-        container.innerHTML = `<div class="alert alert-error">${escapeHtml(e.message)}</div>`;
+    } catch (e) {
+        container.innerHTML = `
+            <div class="alert alert-error">
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="none"
+                     stroke="currentColor" stroke-width="1.5">
+                    <circle cx="10" cy="10" r="8"/>
+                    <path stroke-linecap="round" d="M10 7v4m0 2v1"/>
+                </svg>
+                ${escapeHtml(e.message)}
+            </div>
+        `;
     }
 }
 
@@ -203,59 +432,81 @@ async function deleteDraft(draftId) {
         await API.delete(`/email/draft/${draftId}`);
         Toast.success('Draft deleted');
         loadDrafts();
-    } catch(e) {
-        Toast.error('Failed to delete draft');
+    } catch (e) {
+        Toast.error('Delete failed: ' + e.message);
     }
 }
 
+// ── AI Draft ───────────────────────────────────────────
 async function aiDraftEmail(send) {
-    const clientId = document.getElementById('aiClientId').value.trim();
+    const clientId    = document.getElementById('aiClientId').value.trim();
     const instruction = document.getElementById('aiInstruction').value.trim();
-    const resultEl = document.getElementById('aiResult');
+    const resultEl    = document.getElementById('aiResult');
 
-    if (!clientId || !instruction) {
-        Toast.error('Client ID and instructions are required');
+    if (!clientId) {
+        Toast.error('Client ID is required');
+        document.getElementById('aiClientId').focus();
+        return;
+    }
+    if (!instruction) {
+        Toast.error('Instructions are required');
+        document.getElementById('aiInstruction').focus();
         return;
     }
 
     const draftBtn = document.getElementById('draftBtn');
-    const sendBtn = document.getElementById('sendBtn');
+    const sendBtn  = document.getElementById('aiSendBtn');
     setLoading(draftBtn, true);
     setLoading(sendBtn, true);
     resultEl.classList.add('hidden');
 
     try {
         const res = await API.post('/agent/draft-email', {
-            client_id: clientId,
+            client_id:   clientId,
             instruction: instruction,
-            send: send
+            send:        send
         });
 
         if (res.ok) {
-            const msg = send
-                ? `✅ Email sent to ${res.sent_to || 'client'}`
-                : `✅ Draft saved to Gmail`;
-
             resultEl.className = 'mt-3 alert alert-success';
             resultEl.innerHTML = `
-                <div>${msg}</div>
-                <div class="mt-2 text-xs">
-                    <strong>Subject:</strong> ${escapeHtml(res.subject || '')}<br>
-                    <div style="margin-top:4px;white-space:pre-wrap;max-height:100px;overflow:auto">
-                        ${escapeHtml(res.body || '')}
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="none"
+                     stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <div>
+                    <div class="font-semibold">
+                        ${send ? 'Email sent' : 'Draft saved to Gmail'}
+                    </div>
+                    <div class="text-xs mt-1">
+                        <strong>Subject:</strong>
+                        ${escapeHtml(res.subject || '')}<br>
+                        <div style="margin-top:4px;white-space:pre-wrap;
+                                    max-height:80px;overflow:auto;
+                                    font-size:11px;opacity:0.8">
+                            ${escapeHtml((res.body || '').slice(0, 200))}
+                            ${(res.body || '').length > 200 ? '...' : ''}
+                        </div>
                     </div>
                 </div>
             `;
             resultEl.classList.remove('hidden');
-
             if (!send) loadDrafts();
-            Toast.success(send ? 'Email sent!' : 'Draft saved to Gmail!');
+            Toast.success(send ? 'Email sent!' : 'Draft saved to Gmail');
         } else {
             throw new Error(res.detail || 'Failed');
         }
-    } catch(e) {
+    } catch (e) {
         resultEl.className = 'mt-3 alert alert-error';
-        resultEl.textContent = e.message;
+        resultEl.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none"
+                 stroke="currentColor" stroke-width="1.5">
+                <circle cx="10" cy="10" r="8"/>
+                <path stroke-linecap="round" d="M10 7v4m0 2v1"/>
+            </svg>
+            <span>${escapeHtml(e.message)}</span>
+        `;
         resultEl.classList.remove('hidden');
         Toast.error(e.message);
     } finally {
@@ -264,38 +515,64 @@ async function aiDraftEmail(send) {
     }
 }
 
+// ── Compose ────────────────────────────────────────────
 async function sendCompose(action) {
     const clientId = document.getElementById('compClientId').value.trim();
-    const subject = document.getElementById('compSubject').value.trim();
-    const body = document.getElementById('compBody').value.trim();
+    const subject  = document.getElementById('compSubject').value.trim();
+    const body     = document.getElementById('compBody').value.trim();
 
-    if (!clientId || !subject || !body) {
-        Toast.error('Client ID, subject and body are required');
+    if (!clientId) {
+        Toast.error('Client ID is required');
+        return;
+    }
+    if (!subject) {
+        Toast.error('Subject is required');
+        return;
+    }
+    if (!body) {
+        Toast.error('Email body is required');
         return;
     }
 
-    const data = {
-        client_id: clientId,
-        subject,
-        body,
-        to: document.getElementById('compTo').value.trim() || undefined
-    };
+    const btn = document.getElementById('compSendBtn');
+    setLoading(btn, true);
 
     try {
-        const endpoint = action === 'send' ? '/email/send' : '/email/draft';
+        const endpoint = action === 'send'
+            ? '/email/send'
+            : '/email/draft';
+
+        const data = {
+            client_id: clientId,
+            subject,
+            body,
+            to: document.getElementById('compTo').value.trim() || undefined
+        };
+
         const res = await API.post(endpoint, data);
+
         if (res.ok) {
-            Toast.success(action === 'send' ? 'Email sent!' : 'Draft saved!');
+            Toast.success(
+                action === 'send' ? 'Email sent!' : 'Draft saved!'
+            );
             closeModal('composeModal');
+            // Clear form
+            ['compClientId','compTo','compSubject','compBody']
+                .forEach(id => {
+                    document.getElementById(id).value = '';
+                });
             if (action === 'draft') loadDrafts();
         } else {
             Toast.error(res.detail || 'Failed');
         }
-    } catch(e) {
+    } catch (e) {
         Toast.error(e.message);
+    } finally {
+        setLoading(btn, false);
     }
 }
 
+// ── Boot ───────────────────────────────────────────────
 loadDrafts();
 </script>
 </body>

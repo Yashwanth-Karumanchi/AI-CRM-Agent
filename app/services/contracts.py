@@ -9,6 +9,33 @@ from app.logger import get_logger
 
 logger = get_logger(__name__)
 
+# ── Design constants ───────────────────────────────────
+TEAL = RGBColor(0x2D, 0x7A, 0x6B)
+DARK = RGBColor(0x1A, 0x1A, 0x1A)
+MUTED = RGBColor(0x5A, 0x55, 0x50)
+
+
+def _style_heading(para, color=TEAL):
+    for run in para.runs:
+        run.font.color.rgb = color
+        run.font.bold = True
+
+
+def _add_kv_table(doc, rows: list) -> None:
+    """Add a clean 2-column key-value table"""
+    table = doc.add_table(rows=0, cols=2)
+    table.style = "Table Grid"
+    for label, value in rows:
+        row = table.add_row().cells
+        row[0].text = label
+        row[1].text = str(value) if value else "N/A"
+        run = row[0].paragraphs[0].runs
+        if run:
+            run[0].bold = True
+            run[0].font.color.rgb = MUTED
+    doc.add_paragraph()
+
+
 def generate_contract(
     client: dict,
     contract_data: dict
@@ -16,7 +43,6 @@ def generate_contract(
     """Generate a professional service contract"""
     doc = Document()
 
-    # Page margins
     for section in doc.sections:
         section.top_margin = Inches(1)
         section.bottom_margin = Inches(1)
@@ -26,70 +52,53 @@ def generate_contract(
     # Title
     title = doc.add_heading("SERVICE AGREEMENT", 0)
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    _style_heading(title, TEAL)
 
-    doc.add_paragraph()
-
-    # Contract metadata
     meta = doc.add_paragraph()
     meta.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    meta.add_run(
-        f"Contract #: {contract_data.get('contract_number', 'N/A')}\n"
+    run = meta.add_run(
+        f"Contract No: "
+        f"{contract_data.get('contract_number', 'N/A')}\n"
         f"Date: {datetime.now().strftime('%B %d, %Y')}\n"
-        f"Valid Until: {contract_data.get('valid_until', 'N/A')}"
-    ).italic = True
-
+        f"Valid Until: "
+        f"{contract_data.get('valid_until', 'N/A')}"
+    )
+    run.italic = True
+    run.font.color.rgb = MUTED
     doc.add_paragraph()
 
     # Parties
-    doc.add_heading("PARTIES", level=1)
+    h = doc.add_heading("1. PARTIES", level=1)
+    _style_heading(h)
+    _add_kv_table(doc, [
+        ("Service Provider",
+         contract_data.get("provider_name", "Your Company")),
+        ("Provider Address",
+         contract_data.get("provider_address", "")),
+        ("Provider Email",
+         contract_data.get("provider_email", "")),
+        ("Client Name", client.get("name", "")),
+        ("Client Company", client.get("company", "")),
+        ("Client Email", client.get("email", "")),
+        ("Client Phone", client.get("phone", ""))
+    ])
 
-    parties_table = doc.add_table(rows=0, cols=2)
-    parties_table.style = "Table Grid"
-
-    row = parties_table.add_row().cells
-    row[0].text = "Service Provider"
-    row[1].text = contract_data.get(
-        "provider_name", "Your Company Name"
-    )
-    row[0].paragraphs[0].runs[0].bold = True
-
-    row = parties_table.add_row().cells
-    row[0].text = "Provider Address"
-    row[1].text = contract_data.get(
-        "provider_address", "Your Address"
-    )
-    row[0].paragraphs[0].runs[0].bold = True
-
-    row = parties_table.add_row().cells
-    row[0].text = "Client Name"
-    row[1].text = client.get("name", "")
-    row[0].paragraphs[0].runs[0].bold = True
-
-    row = parties_table.add_row().cells
-    row[0].text = "Client Company"
-    row[1].text = client.get("company", "N/A")
-    row[0].paragraphs[0].runs[0].bold = True
-
-    row = parties_table.add_row().cells
-    row[0].text = "Client Email"
-    row[1].text = client.get("email", "N/A")
-    row[0].paragraphs[0].runs[0].bold = True
-
-    doc.add_paragraph()
-
-    # Scope of Work
-    doc.add_heading("1. SCOPE OF WORK", level=1)
+    # Scope
+    h = doc.add_heading("2. SCOPE OF WORK", level=1)
+    _style_heading(h)
     doc.add_paragraph(
         contract_data.get(
             "scope_of_work",
-            f"Provider agrees to deliver the following "
-            f"services: {client.get('service', 'As discussed')}"
+            f"Provider will deliver: "
+            f"{client.get('service', 'services as discussed.')}"
         )
     )
+    doc.add_paragraph()
 
     # Deliverables
     if contract_data.get("deliverables"):
-        doc.add_heading("2. DELIVERABLES", level=1)
+        h = doc.add_heading("3. DELIVERABLES", level=1)
+        _style_heading(h)
         for i, d in enumerate(
             contract_data["deliverables"], 1
         ):
@@ -97,123 +106,119 @@ def generate_contract(
                 f"{i}. {d}",
                 style="List Number"
             )
+        doc.add_paragraph()
 
     # Timeline
-    doc.add_heading("3. TIMELINE", level=1)
+    if contract_data.get("timeline"):
+        h = doc.add_heading("4. TIMELINE", level=1)
+        _style_heading(h)
+        table = doc.add_table(rows=0, cols=2)
+        table.style = "Table Grid"
+        hdr = table.add_row().cells
+        hdr[0].text = "Milestone"
+        hdr[1].text = "Target Date"
+        for run in hdr[0].paragraphs[0].runs:
+            run.bold = True
+        for run in hdr[1].paragraphs[0].runs:
+            run.bold = True
+        for m in contract_data["timeline"]:
+            row = table.add_row().cells
+            row[0].text = m.get("milestone", "")
+            row[1].text = m.get("date", "")
+        doc.add_paragraph()
 
-    timeline_table = doc.add_table(rows=0, cols=2)
-    timeline_table.style = "Table Grid"
-
-    header = timeline_table.add_row().cells
-    header[0].text = "Milestone"
-    header[1].text = "Date"
-    header[0].paragraphs[0].runs[0].bold = True
-    header[1].paragraphs[0].runs[0].bold = True
-
-    for milestone in contract_data.get("timeline", []):
-        row = timeline_table.add_row().cells
-        row[0].text = milestone.get("milestone", "")
-        row[1].text = milestone.get("date", "")
-
-    doc.add_paragraph()
-
-    # Payment Terms
-    doc.add_heading("4. PAYMENT TERMS", level=1)
-
-    payment_table = doc.add_table(rows=0, cols=2)
-    payment_table.style = "Table Grid"
-
-    payment_fields = [
-        ("Total Amount", f"${contract_data.get('total_amount', '0.00')}"),
-        ("Payment Schedule", contract_data.get("payment_schedule", "Net 30")),
-        ("Payment Method", contract_data.get("payment_method", "Bank Transfer")),
-        ("Late Fee", contract_data.get("late_fee", "1.5% per month"))
-    ]
-
-    for label, value in payment_fields:
-        row = payment_table.add_row().cells
-        row[0].text = label
-        row[1].text = value
-        row[0].paragraphs[0].runs[0].bold = True
-
-    doc.add_paragraph()
-
-    # Terms and Conditions
-    doc.add_heading("5. TERMS AND CONDITIONS", level=1)
-
-    terms = contract_data.get("terms", [
-        "Provider will maintain confidentiality of all client information.",
-        "Client will provide timely feedback and approvals.",
-        "Either party may terminate with 30 days written notice.",
-        "Provider retains ownership of work until full payment received.",
-        "This agreement is governed by the laws of Utah, USA.",
-        "Any disputes will be resolved through mediation.",
-        "Force majeure clause applies to unforeseeable circumstances.",
-        "Amendments must be in writing and signed by both parties."
+    # Payment
+    h = doc.add_heading("5. PAYMENT TERMS", level=1)
+    _style_heading(h)
+    _add_kv_table(doc, [
+        ("Total Amount",
+         f"${contract_data.get('total_amount', '0.00')}"),
+        ("Payment Schedule",
+         contract_data.get("payment_schedule", "Net 30")),
+        ("Payment Method",
+         contract_data.get("payment_method", "Bank Transfer")),
+        ("Late Fee",
+         contract_data.get("late_fee", "1.5% per month"))
     ])
 
+    # Terms
+    h = doc.add_heading("6. TERMS AND CONDITIONS", level=1)
+    _style_heading(h)
+    terms = contract_data.get("terms", [
+        "Provider will maintain confidentiality of all "
+        "client information.",
+        "Client will provide timely feedback and approvals.",
+        "Either party may terminate with 30 days written "
+        "notice.",
+        "Provider retains ownership of work until full "
+        "payment is received.",
+        "This agreement is governed by the laws of Utah, USA.",
+        "Disputes will be resolved through mediation.",
+        "Force majeure clause applies.",
+        "Amendments must be in writing and signed by both "
+        "parties."
+    ])
     for i, term in enumerate(terms, 1):
         doc.add_paragraph(f"{i}. {term}")
-
     doc.add_paragraph()
 
     # Confidentiality
-    doc.add_heading("6. CONFIDENTIALITY", level=1)
+    h = doc.add_heading("7. CONFIDENTIALITY", level=1)
+    _style_heading(h)
     doc.add_paragraph(
         contract_data.get(
             "confidentiality",
             "Both parties agree to keep all shared information "
-            "strictly confidential and not to disclose it to "
+            "strictly confidential and not disclose it to "
             "third parties without prior written consent."
         )
     )
+    doc.add_paragraph()
 
-    # Intellectual Property
-    doc.add_heading("7. INTELLECTUAL PROPERTY", level=1)
+    # IP
+    h = doc.add_heading("8. INTELLECTUAL PROPERTY", level=1)
+    _style_heading(h)
     doc.add_paragraph(
         contract_data.get(
             "ip_clause",
             "Upon receipt of full payment, all deliverables "
             "become the exclusive property of the Client. "
-            "Provider retains the right to use the work "
-            "in portfolio with Client approval."
+            "Provider may use the work in portfolio with "
+            "Client approval."
         )
     )
+    doc.add_paragraph()
 
     # Signatures
-    doc.add_paragraph()
-    doc.add_heading("SIGNATURES", level=1)
-
+    h = doc.add_heading("SIGNATURES", level=1)
+    _style_heading(h)
     sig_table = doc.add_table(rows=0, cols=2)
     sig_table.style = "Table Grid"
+    hdr = sig_table.add_row().cells
+    hdr[0].text = "Service Provider"
+    hdr[1].text = "Client"
+    for c in [hdr[0], hdr[1]]:
+        for run in c.paragraphs[0].runs:
+            run.bold = True
 
     row = sig_table.add_row().cells
-    row[0].text = "Service Provider"
-    row[1].text = "Client"
-    row[0].paragraphs[0].runs[0].bold = True
-    row[1].paragraphs[0].runs[0].bold = True
-
-    row = sig_table.add_row().cells
-    row[0].text = "\n\nSignature: _______________________"
-    row[1].text = "\n\nSignature: _______________________"
-
-    row = sig_table.add_row().cells
-    row[0].text = f"Name: {contract_data.get('provider_name', '')}"
-    row[1].text = f"Name: {client.get('name', '')}"
-
-    row = sig_table.add_row().cells
-    row[0].text = "Date: _______________________"
-    row[1].text = "Date: _______________________"
+    row[0].text = (
+        f"\n\nSignature: _______________________\n"
+        f"Name: {contract_data.get('provider_name', '')}\n"
+        f"Date: _______________________"
+    )
+    row[1].text = (
+        f"\n\nSignature: _______________________\n"
+        f"Name: {client.get('name', '')}\n"
+        f"Date: _______________________"
+    )
 
     buffer = io.BytesIO()
     doc.save(buffer)
     buffer.seek(0)
-
     logger.info(
-        f"Contract generated for client: "
-        f"{client.get('client_id')}"
+        f"Contract generated: {client.get('client_id')}"
     )
-
     return buffer.getvalue()
 
 
@@ -230,50 +235,40 @@ def generate_invoice(
         section.left_margin = Inches(1.25)
         section.right_margin = Inches(1.25)
 
-    # Header
     title = doc.add_heading("INVOICE", 0)
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-
+    _style_heading(title, TEAL)
     doc.add_paragraph()
 
-    # Invoice details
-    info_table = doc.add_table(rows=0, cols=2)
-    info_table.style = "Table Grid"
+    invoice_no = invoice_data.get(
+        "invoice_number",
+        f"INV-{datetime.now().strftime('%Y%m%d%H%M')}"
+    )
+    due = invoice_data.get(
+        "due_date",
+        (date.today() + timedelta(days=30))
+        .strftime("%B %d, %Y")
+    )
 
-    invoice_fields = [
-        ("Invoice #", invoice_data.get(
-            "invoice_number",
-            f"INV-{datetime.now().strftime('%Y%m%d%H%M')}"
-        )),
-        ("Invoice Date", datetime.now().strftime("%B %d, %Y")),
-        ("Due Date", invoice_data.get(
-            "due_date",
-            (date.today() + timedelta(days=30)).strftime("%B %d, %Y")
-        )),
+    _add_kv_table(doc, [
+        ("Invoice No", invoice_no),
+        ("Date", datetime.now().strftime("%B %d, %Y")),
+        ("Due Date", due),
         ("Status", invoice_data.get("status", "Unpaid"))
-    ]
+    ])
 
-    for label, value in invoice_fields:
-        row = info_table.add_row().cells
-        row[0].text = label
-        row[1].text = str(value)
-        row[0].paragraphs[0].runs[0].bold = True
+    h = doc.add_heading("BILLING DETAILS", level=1)
+    _style_heading(h)
+    table = doc.add_table(rows=0, cols=2)
+    table.style = "Table Grid"
+    hdr = table.add_row().cells
+    hdr[0].text = "From"
+    hdr[1].text = "Bill To"
+    for c in [hdr[0], hdr[1]]:
+        for run in c.paragraphs[0].runs:
+            run.bold = True
 
-    doc.add_paragraph()
-
-    # Bill To / From
-    doc.add_heading("BILLING DETAILS", level=1)
-
-    billing_table = doc.add_table(rows=0, cols=2)
-    billing_table.style = "Table Grid"
-
-    row = billing_table.add_row().cells
-    row[0].text = "From"
-    row[1].text = "Bill To"
-    row[0].paragraphs[0].runs[0].bold = True
-    row[1].paragraphs[0].runs[0].bold = True
-
-    row = billing_table.add_row().cells
+    row = table.add_row().cells
     row[0].text = (
         f"{invoice_data.get('provider_name', 'Your Company')}\n"
         f"{invoice_data.get('provider_email', '')}\n"
@@ -285,95 +280,85 @@ def generate_invoice(
         f"{client.get('email', '')}\n"
         f"{client.get('phone', '')}"
     )
-
     doc.add_paragraph()
 
-    # Line Items
-    doc.add_heading("SERVICES", level=1)
-
+    h = doc.add_heading("SERVICES", level=1)
+    _style_heading(h)
     items_table = doc.add_table(rows=0, cols=4)
     items_table.style = "Table Grid"
-
-    header = items_table.add_row().cells
-    for i, h in enumerate(
-        ["Description", "Quantity", "Unit Price", "Total"]
+    hdr = items_table.add_row().cells
+    for i, h_text in enumerate(
+        ["Description", "Qty", "Unit Price", "Total"]
     ):
-        header[i].text = h
-        header[i].paragraphs[0].runs[0].bold = True
+        hdr[i].text = h_text
+        if hdr[i].paragraphs[0].runs:
+            hdr[i].paragraphs[0].runs[0].bold = True
 
-    subtotal = 0
+    subtotal = 0.0
     for item in invoice_data.get("line_items", []):
         qty = float(item.get("quantity", 1))
         price = float(item.get("unit_price", 0))
         total = qty * price
         subtotal += total
-
         row = items_table.add_row().cells
         row[0].text = item.get("description", "")
-        row[1].text = str(qty)
-        row[2].text = f"${price:.2f}"
-        row[3].text = f"${total:.2f}"
+        row[1].text = str(int(qty) if qty == int(qty) else qty)
+        row[2].text = f"${price:,.2f}"
+        row[3].text = f"${total:,.2f}"
 
     doc.add_paragraph()
 
-    # Totals
+    tax_rate = float(invoice_data.get("tax_rate", 0))
+    tax_amt = subtotal * (tax_rate / 100)
+    discount = float(invoice_data.get("discount", 0))
+    total_due = subtotal + tax_amt - discount
+
     totals_table = doc.add_table(rows=0, cols=2)
     totals_table.style = "Table Grid"
-
-    tax_rate = float(invoice_data.get("tax_rate", 0))
-    tax_amount = subtotal * (tax_rate / 100)
-    discount = float(invoice_data.get("discount", 0))
-    total_due = subtotal + tax_amount - discount
-
-    totals = [
-        ("Subtotal", f"${subtotal:.2f}"),
-        (f"Tax ({tax_rate}%)", f"${tax_amount:.2f}"),
-        ("Discount", f"-${discount:.2f}"),
-        ("TOTAL DUE", f"${total_due:.2f}")
-    ]
-
-    for label, value in totals:
+    for label, value in [
+        ("Subtotal", f"${subtotal:,.2f}"),
+        (f"Tax ({tax_rate}%)", f"${tax_amt:,.2f}"),
+        ("Discount", f"-${discount:,.2f}"),
+        ("TOTAL DUE", f"${total_due:,.2f}")
+    ]:
         row = totals_table.add_row().cells
         row[0].text = label
         row[1].text = value
-        row[0].paragraphs[0].runs[0].bold = True
         if label == "TOTAL DUE":
-            row[1].paragraphs[0].runs[0].bold = True
+            for cell in [row[0], row[1]]:
+                if cell.paragraphs[0].runs:
+                    cell.paragraphs[0].runs[0].bold = True
+                    cell.paragraphs[0].runs[0].font.color.rgb = TEAL
 
     doc.add_paragraph()
-
-    # Payment Instructions
-    doc.add_heading("PAYMENT INSTRUCTIONS", level=1)
+    h = doc.add_heading("PAYMENT INSTRUCTIONS", level=1)
+    _style_heading(h)
     doc.add_paragraph(
         invoice_data.get(
             "payment_instructions",
-            "Please make payment via bank transfer to the "
-            "account details provided separately. Reference "
-            "the invoice number in your payment."
+            "Please make payment via bank transfer. "
+            "Reference the invoice number in your payment."
         )
     )
 
-    # Notes
     if invoice_data.get("notes"):
-        doc.add_heading("NOTES", level=1)
+        h = doc.add_heading("NOTES", level=1)
+        _style_heading(h)
         doc.add_paragraph(invoice_data["notes"])
 
-    # Footer
     doc.add_paragraph()
-    footer = doc.add_paragraph(
-        "Thank you for your business!"
-    )
+    footer = doc.add_paragraph("Thank you for your business.")
     footer.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    if footer.runs:
+        footer.runs[0].italic = True
+        footer.runs[0].font.color.rgb = MUTED
 
     buffer = io.BytesIO()
     doc.save(buffer)
     buffer.seek(0)
-
     logger.info(
-        f"Invoice generated for client: "
-        f"{client.get('client_id')}"
+        f"Invoice generated: {client.get('client_id')}"
     )
-
     return buffer.getvalue()
 
 
@@ -390,142 +375,134 @@ def generate_proposal(
         section.left_margin = Inches(1.25)
         section.right_margin = Inches(1.25)
 
-    # Cover
     title = doc.add_heading("BUSINESS PROPOSAL", 0)
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    _style_heading(title, TEAL)
 
-    subtitle = doc.add_paragraph(
-        f"Prepared for: {client.get('company') or client.get('name')}\n"
-        f"Prepared by: {proposal_data.get('provider_name', 'Your Company')}\n"
+    sub = doc.add_paragraph(
+        f"Prepared for: "
+        f"{client.get('company') or client.get('name', '')}\n"
+        f"Prepared by: "
+        f"{proposal_data.get('provider_name', 'Your Company')}\n"
         f"Date: {datetime.now().strftime('%B %d, %Y')}\n"
-        f"Valid Until: {proposal_data.get('valid_until', 'N/A')}"
+        f"Valid Until: "
+        f"{proposal_data.get('valid_until', '30 days')}"
     )
-    subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
-
+    sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    if sub.runs:
+        sub.runs[0].italic = True
+        sub.runs[0].font.color.rgb = MUTED
     doc.add_paragraph()
 
-    # Executive Summary
-    doc.add_heading("EXECUTIVE SUMMARY", level=1)
-    doc.add_paragraph(
-        proposal_data.get(
-            "executive_summary",
-            f"We are pleased to present this proposal for "
-            f"{client.get('service', 'our services')} to "
-            f"{client.get('company') or client.get('name')}."
-        )
-    )
+    sections_content = [
+        ("1. EXECUTIVE SUMMARY",
+         proposal_data.get(
+             "executive_summary",
+             f"We are pleased to present this proposal for "
+             f"{client.get('service', 'our services')} to "
+             f"{client.get('company') or client.get('name')}."
+         )),
+        ("2. PROBLEM STATEMENT",
+         proposal_data.get(
+             "problem_statement",
+             client.get("notes", "As discussed.")
+         )),
+        ("3. PROPOSED SOLUTION",
+         proposal_data.get(
+             "proposed_solution",
+             f"We propose to deliver "
+             f"{client.get('service', 'our services')} "
+             f"tailored to your specific needs."
+         ))
+    ]
 
-    # Problem Statement
-    doc.add_heading("PROBLEM STATEMENT", level=1)
-    doc.add_paragraph(
-        proposal_data.get(
-            "problem_statement",
-            client.get("notes", "As discussed in our meetings.")
-        )
-    )
+    for heading_text, content in sections_content:
+        h = doc.add_heading(heading_text, level=1)
+        _style_heading(h)
+        doc.add_paragraph(content)
+        doc.add_paragraph()
 
-    # Proposed Solution
-    doc.add_heading("PROPOSED SOLUTION", level=1)
-    doc.add_paragraph(
-        proposal_data.get(
-            "proposed_solution",
-            f"We propose to deliver {client.get('service', 'our services')} "
-            f"tailored to your specific needs."
-        )
-    )
-
-    # Scope of Work
     if proposal_data.get("scope_items"):
-        doc.add_heading("SCOPE OF WORK", level=1)
+        h = doc.add_heading("4. SCOPE OF WORK", level=1)
+        _style_heading(h)
         for item in proposal_data["scope_items"]:
-            doc.add_paragraph(f"• {item}")
+            doc.add_paragraph(f"- {item}")
+        doc.add_paragraph()
 
-    # Timeline
     if proposal_data.get("timeline"):
-        doc.add_heading("PROJECT TIMELINE", level=1)
-
-        timeline_table = doc.add_table(rows=0, cols=3)
-        timeline_table.style = "Table Grid"
-
-        header = timeline_table.add_row().cells
-        for i, h in enumerate(
+        h = doc.add_heading("5. PROJECT TIMELINE", level=1)
+        _style_heading(h)
+        tl_table = doc.add_table(rows=0, cols=3)
+        tl_table.style = "Table Grid"
+        hdr = tl_table.add_row().cells
+        for i, txt in enumerate(
             ["Phase", "Description", "Duration"]
         ):
-            header[i].text = h
-            header[i].paragraphs[0].runs[0].bold = True
-
+            hdr[i].text = txt
+            if hdr[i].paragraphs[0].runs:
+                hdr[i].paragraphs[0].runs[0].bold = True
         for phase in proposal_data["timeline"]:
-            row = timeline_table.add_row().cells
+            row = tl_table.add_row().cells
             row[0].text = phase.get("phase", "")
             row[1].text = phase.get("description", "")
             row[2].text = phase.get("duration", "")
-
         doc.add_paragraph()
 
-    # Investment
-    doc.add_heading("INVESTMENT", level=1)
-
+    h = doc.add_heading("6. INVESTMENT", level=1)
+    _style_heading(h)
     if proposal_data.get("pricing_tiers"):
         for tier in proposal_data["pricing_tiers"]:
             doc.add_heading(
-                tier.get("name", "Option"),
-                level=2
+                tier.get("name", "Option"), level=2
             )
             doc.add_paragraph(
-                f"Price: ${tier.get('price', '0')}\n"
+                f"Price: ${tier.get('price', 'TBD')}\n"
                 f"{tier.get('description', '')}"
             )
             if tier.get("includes"):
-                doc.add_paragraph("Includes:")
                 for item in tier["includes"]:
-                    doc.add_paragraph(
-                        f"  ✓ {item}",
-                        style="List Bullet"
-                    )
+                    doc.add_paragraph(f"  + {item}")
     else:
         doc.add_paragraph(
             f"Total Investment: "
             f"${proposal_data.get('total_price', 'TBD')}\n"
             f"{proposal_data.get('pricing_notes', '')}"
         )
-
     doc.add_paragraph()
 
-    # Why Us
     if proposal_data.get("why_us"):
-        doc.add_heading("WHY CHOOSE US", level=1)
+        h = doc.add_heading("7. WHY CHOOSE US", level=1)
+        _style_heading(h)
         for point in proposal_data["why_us"]:
-            doc.add_paragraph(f"✓ {point}")
+            doc.add_paragraph(f"+ {point}")
+        doc.add_paragraph()
 
-    # Next Steps
-    doc.add_heading("NEXT STEPS", level=1)
-    next_steps = proposal_data.get("next_steps", [
-        "Review this proposal",
-        "Schedule a follow-up call",
-        "Sign the service agreement",
-        "Begin project kickoff"
-    ])
-    for i, step in enumerate(next_steps, 1):
+    h = doc.add_heading("8. NEXT STEPS", level=1)
+    _style_heading(h)
+    for i, step in enumerate(proposal_data.get(
+        "next_steps",
+        ["Review proposal", "Schedule call",
+         "Sign agreement", "Project kickoff"]
+    ), 1):
         doc.add_paragraph(f"{i}. {step}")
-
-    # Call to Action
     doc.add_paragraph()
+
     cta = doc.add_paragraph(
         proposal_data.get(
             "call_to_action",
             f"Ready to get started? Contact us at "
-            f"{proposal_data.get('provider_email', 'your@email.com')}"
+            f"{proposal_data.get('provider_email', '')}"
         )
     )
     cta.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    if cta.runs:
+        cta.runs[0].bold = True
+        cta.runs[0].font.color.rgb = TEAL
 
     buffer = io.BytesIO()
     doc.save(buffer)
     buffer.seek(0)
-
     logger.info(
-        f"Proposal generated for: "
-        f"{client.get('client_id')}"
+        f"Proposal generated: {client.get('client_id')}"
     )
-
     return buffer.getvalue()

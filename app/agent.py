@@ -1,27 +1,47 @@
 import json
 from app.logger import get_logger
-from app.services.llm import generate_json, safe_str
+from app.services.llm import (
+    generate_json,
+    generate,
+    generate_with_document,
+    safe_str
+)
 
 logger = get_logger(__name__)
 
 
 async def extract_client_from_pdf(pdf_text: str) -> dict:
-    prompt = f"""Extract client info from this document.
+    """
+    Extract structured client data from PDF text.
+    Used by /process-pdf and ARIA chat file uploads.
+    """
+    prompt = f"""Extract client information from this document.
 Return ONLY valid JSON with these exact fields:
 {{
     "name": "full name or empty string",
     "email": "email or empty string",
-    "company": "company or empty string",
-    "phone": "phone or empty string",
+    "company": "company name or empty string",
+    "phone": "phone number or empty string",
     "service": "service requested or empty string",
     "priority": "Low or Medium or High",
     "notes": "other relevant info",
     "executive_summary": "2-3 sentence summary",
-    "business_problem": "main problem to solve",
+    "business_problem": "main problem they need solved",
     "current_process": "how they currently work",
-    "recommendations": ["recommendation 1", "recommendation 2"],
-    "open_questions": ["question 1", "question 2"]
+    "recommendations": [
+        "recommendation 1",
+        "recommendation 2"
+    ],
+    "open_questions": [
+        "question 1",
+        "question 2"
+    ]
 }}
+
+Rules:
+- Use empty string "" if info not found
+- priority: default to Medium if unclear
+- Extract name from signature, letterhead, or intro
 
 Document:
 {pdf_text[:4000]}"""
@@ -30,40 +50,92 @@ Document:
 
 
 async def analyze_client(client: dict) -> dict:
-    prompt = f"""Analyze this CRM client record.
+    """
+    Deep AI analysis of a single client record.
+    Used for reports, proposals, and ARIA chat.
+    """
+    prompt = f"""Analyze this CRM client record thoroughly.
 Return ONLY valid JSON:
 {{
-    "executive_summary": "2-3 sentence overview",
-    "business_problem": "their main challenge",
+    "executive_summary": "2-3 sentence overview of this client",
+    "business_problem": "their main challenge or need",
     "current_process": "how they currently work",
-    "recommendations": ["action 1", "action 2", "action 3"],
-    "open_questions": ["question 1", "question 2"],
-    "next_actions": ["immediate action 1", "action 2"],
+    "recommendations": [
+        "specific action 1",
+        "specific action 2",
+        "specific action 3"
+    ],
+    "open_questions": [
+        "question to clarify 1",
+        "question to clarify 2"
+    ],
+    "next_actions": [
+        "immediate action to take 1",
+        "immediate action to take 2"
+    ],
     "risk_level": "Low or Medium or High",
     "opportunity_score": "1-10",
-    "notes": "additional insights"
+    "notes": "additional insights or observations"
 }}
 
 Client Record:
 Name: {safe_str(client.get('name'))}
 Company: {safe_str(client.get('company'))}
 Email: {safe_str(client.get('email'))}
+Phone: {safe_str(client.get('phone'))}
 Service: {safe_str(client.get('service'))}
 Priority: {safe_str(client.get('priority'))}
 Stage: {safe_str(client.get('stage'))}
 Notes: {safe_str(client.get('notes'))}
+Next Follow-up: {safe_str(client.get('next_follow_up'))}
 Created: {safe_str(client.get('created_at'))}"""
 
     return await generate_json(prompt)
 
 
-async def draft_email(client: dict, instruction: str) -> dict:
-    prompt = f"""Draft a professional email based on instructions.
+async def analyze_document_content(
+    document_text: str,
+    user_question: str,
+    file_type: str = "document"
+) -> str:
+    """
+    Answer a user's question about an uploaded document.
+    Used by ARIA chat file upload handler.
+    """
+    prompt = (
+        f"You are ARIA, an AI CRM assistant. "
+        f"A user uploaded a {file_type} and asked: "
+        f'"{user_question}"\n\n'
+        f"Analyze the document and give a helpful, "
+        f"specific answer. If relevant to CRM (client info, "
+        f"contact details, services needed), highlight that.\n\n"
+        f"Be concise and actionable."
+    )
+    return await generate_with_document(
+        prompt, document_text, max_doc_chars=6000
+    )
+
+
+async def draft_email(
+    client: dict,
+    instruction: str
+) -> dict:
+    """
+    Draft a professional email for a client.
+    Returns {subject, body}.
+    """
+    prompt = f"""Draft a professional email based on the instruction below.
 Return ONLY valid JSON:
 {{
-    "subject": "clear professional subject line",
-    "body": "complete email body text"
+    "subject": "clear, professional subject line",
+    "body": "complete email body — professional but warm tone"
 }}
+
+Rules:
+- Address the client by first name
+- Keep body under 300 words unless instruction says otherwise
+- No placeholders like [NAME] — use actual client data
+- Sign off with: Best regards, Yashwanth Karumanchi, yashwanthkarumanchi@gmail.com.
 
 Client:
 Name: {safe_str(client.get('name'))}
@@ -72,13 +144,14 @@ Email: {safe_str(client.get('email', 'N/A'))}
 Service: {safe_str(client.get('service', 'N/A'))}
 Stage: {safe_str(client.get('stage'))}
 Notes: {safe_str(client.get('notes', 'N/A'))}
+Next Follow-up: {safe_str(client.get('next_follow_up', 'N/A'))}
 
 Instructions: {instruction}"""
 
     result = await generate_json(prompt)
     return {
-        "subject": result.get("subject", ""),
-        "body": result.get("body", "")
+        "subject": str(result.get("subject", "Follow Up")),
+        "body":    str(result.get("body", ""))
     }
 
 
@@ -86,6 +159,10 @@ async def chat(
     message: str,
     client_id: str = None
 ) -> str:
+    """
+    Simple AI chat with CRM context.
+    Used by /agent/chat endpoint.
+    """
     from app.services import sheets
 
     context = ""
@@ -99,6 +176,7 @@ async def chat(
                     f"Company: {safe_str(client.get('company'))}\n"
                     f"Stage: {safe_str(client.get('stage'))}\n"
                     f"Priority: {safe_str(client.get('priority'))}\n"
+                    f"Service: {safe_str(client.get('service'))}\n"
                     f"Notes: {safe_str(client.get('notes'))}\n"
                 )
         except Exception:
@@ -120,16 +198,17 @@ async def chat(
             pass
 
     prompt = (
-        f"You are ARIA, an AI CRM assistant.\n"
+        f"You are ARIA, an AI CRM assistant. "
         f"Answer professionally and concisely.\n"
         f"{context}\n\n"
         f"User: {message}\n\n"
         f"ARIA:"
     )
 
-    from app.services.llm import generate
     return await generate(prompt)
 
+
+# ── Scoring ────────────────────────────────────────────
 
 async def score_single_client(client: dict) -> dict:
     from app.services.scoring import score_client
@@ -157,6 +236,8 @@ async def get_daily_recommendations(clients: list) -> dict:
     )
     return await get_follow_up_recommendations(clients)
 
+
+# ── Search / Intelligence ──────────────────────────────
 
 async def nl_search(query: str, clients: list) -> dict:
     from app.services.search import natural_language_search

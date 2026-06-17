@@ -3,7 +3,7 @@ services:
     name: ai-crm-agent
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1 --timeout-keep-alive 120
     healthCheckPath: /health
     envVars:
       - key: GEMINI_API_KEY
@@ -18,3 +18,7 @@ services:
         sync: false
       - key: GOOGLE_CREDENTIALS
         sync: false
+      - key: GMAIL_TOKEN
+        sync: false
+      - key: LLM_MODEL
+        value: models/gemini-3.1-flash-lite

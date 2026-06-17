@@ -1,30 +1,37 @@
 from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional, List
 from enum import Enum
-from datetime import datetime, date
+from datetime import datetime
+
+
+# ── Enums ──────────────────────────────────────────────
 
 class Priority(str, Enum):
-    low = "Low"
+    low    = "Low"
     medium = "Medium"
-    high = "High"
+    high   = "High"
+
 
 class Stage(str, Enum):
-    new = "New"
-    contacted = "Contacted"
+    new                    = "New"
+    contacted              = "Contacted"
     consultation_scheduled = "Consultation Scheduled"
-    proposal_sent = "Proposal Sent"
-    won = "Won"
-    lost = "Lost"
+    proposal_sent          = "Proposal Sent"
+    won                    = "Won"
+    lost                   = "Lost"
+
+
+# ── Client Models ──────────────────────────────────────
 
 class ClientCreate(BaseModel):
-    name: str
-    email: Optional[EmailStr] = None
-    company: Optional[str] = None
-    phone: Optional[str] = None
-    service: Optional[str] = None
-    priority: Priority = Priority.medium
-    stage: Stage = Stage.new
-    notes: Optional[str] = None
+    name:     str
+    email:    Optional[EmailStr] = None
+    company:  Optional[str]      = None
+    phone:    Optional[str]      = None
+    service:  Optional[str]      = None
+    priority: Priority           = Priority.medium
+    stage:    Stage              = Stage.new
+    notes:    Optional[str]      = None
 
     @field_validator("name")
     @classmethod
@@ -33,21 +40,26 @@ class ClientCreate(BaseModel):
             raise ValueError("Name cannot be empty")
         return v.strip()
 
-    @field_validator("company", "phone", "service", "notes", mode="before")
+    @field_validator(
+        "company", "phone", "service", "notes",
+        mode="before"
+    )
     @classmethod
-    def strip_strings(cls, v):
+    def strip_optional_strings(cls, v):
         if isinstance(v, str):
-            return v.strip() or None
+            stripped = v.strip()
+            return stripped if stripped else None
         return v
 
+
 class ClientUpdate(BaseModel):
-    name: Optional[str] = None
-    email: Optional[EmailStr] = None
-    company: Optional[str] = None
-    phone: Optional[str] = None
-    service: Optional[str] = None
+    name:     Optional[str]      = None
+    email:    Optional[EmailStr] = None
+    company:  Optional[str]      = None
+    phone:    Optional[str]      = None
+    service:  Optional[str]      = None
     priority: Optional[Priority] = None
-    notes: Optional[str] = None
+    notes:    Optional[str]      = None
 
     @field_validator("name", mode="before")
     @classmethod
@@ -56,8 +68,10 @@ class ClientUpdate(BaseModel):
             raise ValueError("Name cannot be empty")
         return v
 
+
 class StageUpdate(BaseModel):
     stage: Stage
+
 
 class FollowUpUpdate(BaseModel):
     follow_up_date: str
@@ -68,8 +82,11 @@ class FollowUpUpdate(BaseModel):
         try:
             datetime.strptime(v, "%Y-%m-%d")
         except ValueError:
-            raise ValueError("follow_up_date must be YYYY-MM-DD")
+            raise ValueError(
+                "follow_up_date must be YYYY-MM-DD"
+            )
         return v
+
 
 class BulkStageUpdate(BaseModel):
     client_ids: List[str]
@@ -82,6 +99,7 @@ class BulkStageUpdate(BaseModel):
             raise ValueError("client_ids cannot be empty")
         return v
 
+
 class BulkArchive(BaseModel):
     client_ids: List[str]
 
@@ -92,11 +110,14 @@ class BulkArchive(BaseModel):
             raise ValueError("client_ids cannot be empty")
         return v
 
+
+# ── Email Models ───────────────────────────────────────
+
 class EmailDraft(BaseModel):
     client_id: str
-    subject: str
-    body: str
-    to: Optional[EmailStr] = None
+    subject:   str
+    body:      str
+    to:        Optional[EmailStr] = None
 
     @field_validator("subject", "body")
     @classmethod
@@ -104,12 +125,13 @@ class EmailDraft(BaseModel):
         if not v.strip():
             raise ValueError("Field cannot be empty")
         return v.strip()
+
 
 class EmailSend(BaseModel):
     client_id: str
-    subject: str
-    body: str
-    to: Optional[EmailStr] = None
+    subject:   str
+    body:      str
+    to:        Optional[EmailStr] = None
 
     @field_validator("subject", "body")
     @classmethod
@@ -118,15 +140,23 @@ class EmailSend(BaseModel):
             raise ValueError("Field cannot be empty")
         return v.strip()
 
+
+class DeleteDraftInput(BaseModel):
+    draft_id: str
+
+
+# ── Chat / Agent Models ────────────────────────────────
+
 class HistoryMessage(BaseModel):
-    role: str
+    role:    str   # "user" or "assistant"
     content: str
 
+
 class AgentChat(BaseModel):
-    message: str
-    client_id: Optional[str] = None
-    history: Optional[List[HistoryMessage]] = None
-    session_context: Optional[dict] = None
+    message:         str
+    client_id:       Optional[str]              = None
+    history:         Optional[List[HistoryMessage]] = None
+    session_context: Optional[dict]             = None
 
     @field_validator("message")
     @classmethod
@@ -135,10 +165,11 @@ class AgentChat(BaseModel):
             raise ValueError("Message cannot be empty")
         return v.strip()
 
+
 class AgentDraftEmail(BaseModel):
-    client_id: str
+    client_id:   str
     instruction: str
-    send: bool = False
+    send:        bool = False
 
     @field_validator("instruction")
     @classmethod
@@ -147,30 +178,26 @@ class AgentDraftEmail(BaseModel):
             raise ValueError("Instruction cannot be empty")
         return v.strip()
 
-class DeleteDraftInput(BaseModel):
-    draft_id: str
 
-class APIResponse(BaseModel):
-    ok: bool
-    message: str
-    data: Optional[dict] = None
-    error: Optional[str] = None
-    
+# ── Calendar Models ────────────────────────────────────
+
 class ScheduleMeetingInput(BaseModel):
-    client_id: str
-    title: Optional[str] = None
-    start_time: str
-    end_time: str
-    description: Optional[str] = None
-    location: Optional[str] = None
-    invite_client: bool = False
+    client_id:     str
+    title:         Optional[str] = None
+    start_time:    str
+    end_time:      str
+    description:   Optional[str] = None
+    location:      Optional[str] = None
+    invite_client: bool          = False
     meeting_notes: Optional[str] = None
 
     @field_validator("start_time", "end_time")
     @classmethod
     def must_be_iso(cls, v):
         try:
-            datetime.fromisoformat(v.replace("Z", "+00:00"))
+            datetime.fromisoformat(
+                v.replace("Z", "+00:00")
+            )
         except ValueError:
             raise ValueError(
                 "Must be ISO 8601 format: "
@@ -178,13 +205,15 @@ class ScheduleMeetingInput(BaseModel):
             )
         return v
 
+
 class UpdateMeetingInput(BaseModel):
-    title: Optional[str] = None
-    start_time: Optional[str] = None
-    end_time: Optional[str] = None
-    description: Optional[str] = None
-    location: Optional[str] = None
+    title:         Optional[str] = None
+    start_time:    Optional[str] = None
+    end_time:      Optional[str] = None
+    description:   Optional[str] = None
+    location:      Optional[str] = None
     meeting_notes: Optional[str] = None
+
 
 class MeetingNotesInput(BaseModel):
     notes: str
@@ -196,75 +225,88 @@ class MeetingNotesInput(BaseModel):
             raise ValueError("Notes cannot be empty")
         return v.strip()
 
+
+# ── Document Models ────────────────────────────────────
+
 class TimelineItem(BaseModel):
-    milestone: Optional[str] = None
-    phase: Optional[str] = None
+    milestone:   Optional[str] = None
+    phase:       Optional[str] = None
     description: Optional[str] = None
-    date: Optional[str] = None
-    duration: Optional[str] = None
+    date:        Optional[str] = None
+    duration:    Optional[str] = None
+
 
 class LineItem(BaseModel):
     description: str
-    quantity: float = 1.0
-    unit_price: float = 0.0
+    quantity:    float = 1.0
+    unit_price:  float = 0.0
+
 
 class PricingTier(BaseModel):
-    name: str
-    price: str
-    description: Optional[str] = None
-    includes: Optional[List[str]] = None
+    name:        str
+    price:       str
+    description: Optional[str]       = None
+    includes:    Optional[List[str]] = None
+
 
 class GenerateContractInput(BaseModel):
-    client_id: str
-    provider_name: str
-    provider_address: Optional[str] = None
-    provider_email: Optional[str] = None
-    scope_of_work: Optional[str] = None
-    deliverables: Optional[List[str]] = None
-    timeline: Optional[List[TimelineItem]] = None
-    total_amount: Optional[str] = None
-    payment_schedule: Optional[str] = "Net 30"
-    payment_method: Optional[str] = "Bank Transfer"
-    valid_until: Optional[str] = None
-    terms: Optional[List[str]] = None
-    confidentiality: Optional[str] = None
-    ip_clause: Optional[str] = None
+    client_id:        str
+    provider_name:    str
+    provider_address: Optional[str]             = None
+    provider_email:   Optional[str]             = None
+    scope_of_work:    Optional[str]             = None
+    deliverables:     Optional[List[str]]       = None
+    timeline:         Optional[List[TimelineItem]] = None
+    total_amount:     Optional[str]             = None
+    payment_schedule: Optional[str]             = "Net 30"
+    payment_method:   Optional[str]             = "Bank Transfer"
+    valid_until:      Optional[str]             = None
+    terms:            Optional[List[str]]       = None
+    confidentiality:  Optional[str]             = None
+    ip_clause:        Optional[str]             = None
+
 
 class GenerateInvoiceInput(BaseModel):
-    client_id: str
-    provider_name: str
-    provider_email: Optional[str] = None
-    provider_address: Optional[str] = None
-    line_items: List[LineItem]
-    tax_rate: float = 0.0
-    discount: float = 0.0
-    due_date: Optional[str] = None
-    payment_instructions: Optional[str] = None
-    notes: Optional[str] = None
+    client_id:           str
+    provider_name:       str
+    provider_email:      Optional[str]      = None
+    provider_address:    Optional[str]      = None
+    line_items:          List[LineItem]
+    tax_rate:            float              = 0.0
+    discount:            float              = 0.0
+    due_date:            Optional[str]      = None
+    payment_instructions: Optional[str]    = None
+    notes:               Optional[str]      = None
 
     @field_validator("line_items")
     @classmethod
     def must_have_items(cls, v):
         if not v:
-            raise ValueError("Must have at least one line item")
+            raise ValueError(
+                "Must have at least one line item"
+            )
         return v
 
+
 class GenerateProposalInput(BaseModel):
-    client_id: str
-    provider_name: str
-    provider_email: Optional[str] = None
-    executive_summary: Optional[str] = None
-    problem_statement: Optional[str] = None
-    proposed_solution: Optional[str] = None
-    scope_items: Optional[List[str]] = None
-    timeline: Optional[List[TimelineItem]] = None
-    total_price: Optional[str] = None
-    pricing_tiers: Optional[List[PricingTier]] = None
-    pricing_notes: Optional[str] = None
-    why_us: Optional[List[str]] = None
-    next_steps: Optional[List[str]] = None
-    call_to_action: Optional[str] = None
-    valid_until: Optional[str] = None
+    client_id:         str
+    provider_name:     str
+    provider_email:    Optional[str]             = None
+    executive_summary: Optional[str]             = None
+    problem_statement: Optional[str]             = None
+    proposed_solution: Optional[str]             = None
+    scope_items:       Optional[List[str]]       = None
+    timeline:          Optional[List[TimelineItem]] = None
+    total_price:       Optional[str]             = None
+    pricing_tiers:     Optional[List[PricingTier]] = None
+    pricing_notes:     Optional[str]             = None
+    why_us:            Optional[List[str]]       = None
+    next_steps:        Optional[List[str]]       = None
+    call_to_action:    Optional[str]             = None
+    valid_until:       Optional[str]             = None
+
+
+# ── Search Models ──────────────────────────────────────
 
 class NLSearchInput(BaseModel):
     query: str
@@ -276,6 +318,7 @@ class NLSearchInput(BaseModel):
             raise ValueError("Query cannot be empty")
         return v.strip()
 
+
 class SmartFilterInput(BaseModel):
     criteria: str
 
@@ -285,3 +328,12 @@ class SmartFilterInput(BaseModel):
         if not v.strip():
             raise ValueError("Criteria cannot be empty")
         return v.strip()
+
+
+# ── Generic Response ───────────────────────────────────
+
+class APIResponse(BaseModel):
+    ok:      bool
+    message: str
+    data:    Optional[dict] = None
+    error:   Optional[str]  = None

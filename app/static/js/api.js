@@ -1,30 +1,38 @@
-// ── Central API Module ─────────────────────────────────
+// ── ARIA Central API Module ────────────────────────────
+// All HTTP calls go through here.
+// Handles auth, 401 redirect, file uploads, blobs.
+
 const API = (() => {
-    let baseUrl = '';
-    let authHeader = '';
+    let _baseUrl = '';
+    let _authHeader = '';
+
+    // ── Init & Storage ─────────────────────────────────
 
     function init(url, username, password) {
-        baseUrl = url.replace(/\/$/, '');
-        authHeader = 'Basic ' + btoa(
-            unescape(encodeURIComponent(username + ':' + password))
+        _baseUrl = url.replace(/\/$/, '');
+        // btoa with URI encoding handles special chars
+        _authHeader = 'Basic ' + btoa(
+            unescape(encodeURIComponent(
+                username + ':' + password
+            ))
         );
-        localStorage.setItem('aria_url', baseUrl);
-        localStorage.setItem('aria_auth', authHeader);
-        localStorage.setItem('aria_username', username);
+        localStorage.setItem('aria_url', _baseUrl);
+        localStorage.setItem('aria_auth', _authHeader);
+        localStorage.setItem('aria_user', username);
     }
 
     function loadFromStorage() {
-        baseUrl = localStorage.getItem('aria_url') || '';
-        authHeader = localStorage.getItem('aria_auth') || '';
-        return !!(baseUrl && authHeader);
+        _baseUrl     = localStorage.getItem('aria_url')  || '';
+        _authHeader  = localStorage.getItem('aria_auth') || '';
+        return !!(_baseUrl && _authHeader);
     }
 
     function clear() {
-        baseUrl = '';
-        authHeader = '';
+        _baseUrl = '';
+        _authHeader = '';
         localStorage.removeItem('aria_url');
         localStorage.removeItem('aria_auth');
-        localStorage.removeItem('aria_username');
+        localStorage.removeItem('aria_user');
     }
 
     function redirectToLogin() {
@@ -32,94 +40,126 @@ const API = (() => {
         window.location.href = '/aria/';
     }
 
+    function getUsername() {
+        return localStorage.getItem('aria_user') || 'User';
+    }
+
+    // ── Core Request ───────────────────────────────────
+
     async function request(
-        method, path, body = null, isBlob = false
+        method,
+        path,
+        body = null,
+        isBlob = false
     ) {
-        if (!baseUrl || !authHeader) {
+        if (!_baseUrl || !_authHeader) {
             redirectToLogin();
             throw new Error('Not authenticated');
         }
 
+        const headers = {
+            'Authorization': _authHeader,
+            // Tells FastAPI this is XHR → suppress
+            // browser's native Basic Auth popup on 401
+            'X-Requested-With': 'XMLHttpRequest'
+        };
+
+        if (!isBlob && body !== null) {
+            headers['Content-Type'] = 'application/json';
+        }
+
         const options = {
             method,
-            headers: {
-                'Authorization': authHeader,
-                'Content-Type': 'application/json',
-                // Prevent browser from showing native auth popup
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            // Critical: never let browser handle auth challenges
+            headers,
             credentials: 'omit'
         };
 
-        if (body && method !== 'GET') {
+        if (body !== null && method !== 'GET') {
             options.body = JSON.stringify(body);
         }
 
         let res;
         try {
-            res = await fetch(baseUrl + path, options);
-        } catch (networkErr) {
+            res = await fetch(_baseUrl + path, options);
+        } catch (err) {
             throw new Error(
-                'Network error — is the server running?'
+                'Cannot reach server. Check your connection.'
             );
         }
 
+        // Auth failure → go to login
         if (res.status === 401 || res.status === 403) {
             redirectToLogin();
-            throw new Error('Session expired — please log in again');
-        }
-
-        if (res.status === 429) {
             throw new Error(
-                'Rate limit reached. Please wait 30 seconds.'
+                'Session expired. Please sign in again.'
             );
         }
 
+        // Rate limit
+        if (res.status === 429) {
+            throw new Error(
+                'Rate limit reached. Wait 30 seconds.'
+            );
+        }
+
+        // Blob download
         if (isBlob) {
             if (!res.ok) {
-                throw new Error(`Request failed: ${res.status}`);
+                throw new Error(
+                    `Download failed: ${res.status}`
+                );
             }
             return res.blob();
         }
 
+        // JSON response
         let data;
         try {
             data = await res.json();
         } catch {
-            throw new Error(`Server error: ${res.status}`);
+            throw new Error(
+                `Server returned invalid response (${res.status})`
+            );
         }
 
         if (!res.ok) {
-            throw new Error(
-                data.detail || data.message ||
-                `Request failed: ${res.status}`
-            );
+            const msg =
+                data?.detail ||
+                data?.message ||
+                `Request failed: ${res.status}`;
+            throw new Error(msg);
         }
 
         return data;
     }
 
-    // Multipart form upload (no Content-Type header)
-    async function upload(method, path, formData) {
-        if (!baseUrl || !authHeader) {
+    // ── File Upload (multipart) ────────────────────────
+
+    async function upload(method, path, formData, signal) {
+        if (!_baseUrl || !_authHeader) {
             redirectToLogin();
             throw new Error('Not authenticated');
         }
 
         let res;
         try {
-            res = await fetch(baseUrl + path, {
+            res = await fetch(_baseUrl + path, {
                 method,
                 headers: {
-                    'Authorization': authHeader,
+                    'Authorization': _authHeader,
                     'X-Requested-With': 'XMLHttpRequest'
                 },
                 credentials: 'omit',
-                body: formData
+                body: formData,
+                signal  // allows AbortController timeout
             });
-        } catch (networkErr) {
-            throw new Error('Network error');
+        } catch (err) {
+            if (err.name === 'AbortError') {
+                throw new Error(
+                    'Upload timed out. Please try again.'
+                );
+            }
+            throw new Error('Network error during upload');
         }
 
         if (res.status === 401 || res.status === 403) {
@@ -128,29 +168,81 @@ const API = (() => {
         }
 
         if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            throw new Error(
-                err.detail || `Upload failed: ${res.status}`
-            );
+            let detail = `Upload failed: ${res.status}`;
+            try {
+                const err = await res.json();
+                detail = err.detail || detail;
+            } catch { /* ignore */ }
+            throw new Error(detail);
         }
 
         return res;
     }
+
+    // ── Streaming (SSE) ────────────────────────────────
+
+    async function stream(method, path, formData, signal) {
+        if (!_baseUrl || !_authHeader) {
+            redirectToLogin();
+            throw new Error('Not authenticated');
+        }
+
+        const res = await fetch(_baseUrl + path, {
+            method,
+            headers: {
+                'Authorization': _authHeader,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'omit',
+            body: formData,
+            signal
+        });
+
+        if (res.status === 401 || res.status === 403) {
+            redirectToLogin();
+            throw new Error('Session expired');
+        }
+
+        if (!res.ok) {
+            let detail = `Stream failed: ${res.status}`;
+            try {
+                const err = await res.json();
+                detail = err.detail || detail;
+            } catch { /* ignore */ }
+            throw new Error(detail);
+        }
+
+        return res;
+    }
+
+    // ── Public API ─────────────────────────────────────
 
     return {
         init,
         loadFromStorage,
         clear,
         redirectToLogin,
-        get: (path) => request('GET', path),
-        post: (path, body) => request('POST', path, body),
-        put: (path, body) => request('PUT', path, body),
-        delete: (path) => request('DELETE', path),
+        getUsername,
+
+        get:    (path)        => request('GET',    path),
+        post:   (path, body)  => request('POST',   path, body),
+        put:    (path, body)  => request('PUT',    path, body),
+        patch:  (path, body)  => request('PATCH',  path, body),
+        delete: (path)        => request('DELETE', path),
+
+        // File downloads
         blob: (method, path, body) =>
             request(method, path, body, true),
+
+        // Multipart file upload
         upload,
-        getBaseUrl: () => baseUrl,
-        getAuthHeader: () => authHeader
+
+        // SSE streaming (returns raw Response)
+        stream,
+
+        getBaseUrl:    () => _baseUrl,
+        getAuthHeader: () => _authHeader,
+        isAuthenticated: () => !!(_baseUrl && _authHeader)
     };
 })();
 
