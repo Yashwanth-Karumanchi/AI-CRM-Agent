@@ -2260,53 +2260,59 @@ async def aria_chat(
             "analysis", "rollback", "undo delete", "generate"
         }
 
+        # Build recent conversation context for the firewall
+        recent_history_text = ""
+        if data.history:
+            for msg in data.history[-6:]:
+                role = "User" if msg.role == "user" else "ARIA"
+                recent_history_text += f"{role}: {msg.content}\n"
+
+        # Only bypass the LLM firewall for confirmations/pending actions.
+        # Everything else gets classified with context.
         _auto_pass = (
-            # Exact confirmation / cancellation words
             msg_lower_fw in _CONFIRM_WORDS
-            # Pending action — must let confirmation through
             or bool(ctx.get("pendingAction"))
-            # Contains explicit CRM keyword
-            or any(kw in msg_lower_fw for kw in _CRM_KEYWORDS)
         )
 
         if not _auto_pass:
             _guard_prompt = (
-                f"You are a strict topic classifier for a "
-                f"CRM business assistant.\n"
-                f"Is this message related to CRM, sales, "
-                f"clients, pipeline, email, meetings, or "
-                f"business operations?\n\n"
-                f"Message: \"{data.message}\"\n\n"
-                f"Blocked examples:\n"
-                f"- 'give python code to reverse a string'\n"
-                f"- 'write me a poem'\n"
-                f"- 'what is the capital of France'\n"
-                f"- 'explain quantum physics'\n\n"
-                f"Allowed examples:\n"
-                f"- 'give me a pipeline summary'\n"
-                f"- 'analyze it' (follow-up to CRM question)\n"
-                f"- 'generate it' (follow-up to CRM question)\n"
-                f"- 'send an email to Sarah'\n"
-                f"- 'who needs follow up today'\n\n"
-                f"Respond with ONLY one word: ALLOWED or BLOCKED"
+                "You are a strict topic classifier for ARIA, a CRM business assistant.\n"
+                "Decide whether the CURRENT MESSAGE is allowed, using the recent conversation context.\n\n"
+
+                "ARIA is allowed to help with:\n"
+                "- clients, leads, accounts, contacts, prospects\n"
+                "- sales pipeline, stages, follow-ups, win/loss analysis\n"
+                "- emails, drafts, meetings, calendar, reports, proposals, invoices, contracts\n"
+                "- business operations related to CRM work\n"
+                "- short follow-ups like 'map them', 'do it', 'why?', 'show me', or 'explain' ONLY when the recent context is CRM-related\n\n"
+
+                "ARIA must block:\n"
+                "- coding questions\n"
+                "- homework/general trivia\n"
+                "- poems, stories, unrelated writing\n"
+                "- unrelated personal advice\n"
+                "- anything not connected to CRM/business operations\n\n"
+
+                f"RECENT CONVERSATION:\n{recent_history_text or '[none]'}\n"
+                f"CURRENT MESSAGE: \"{data.message}\"\n\n"
+
+                "Respond with ONLY one word: ALLOWED or BLOCKED"
             )
 
-            _guard = await generate(
-                _guard_prompt, expect_json=False
-            )
+            _guard = await generate(_guard_prompt, expect_json=False)
 
             if "BLOCKED" in _guard.strip().upper():
                 return {
-                    "ok":                 True,
-                    "response":           (
+                    "ok": True,
+                    "response": (
                         "I'm ARIA, your CRM assistant — I can only "
                         "help with clients, pipeline, emails, "
                         "meetings, reports, and sales.\n\n"
                         "What would you like to do?"
                     ),
-                    "action_executed":    None,
+                    "action_executed": None,
                     "needs_confirmation": False,
-                    "context":            {}
+                    "context": {}
                 }
         # ── End Firewall ────────────────────────────────
 
