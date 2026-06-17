@@ -2230,21 +2230,28 @@ async def aria_chat(
             )
             
         # ── Topic Firewall ─────────────────────────────
-        # Block anything unrelated to CRM business.
-        # Confirmations and cancellations always pass —
-        # they are responses to ARIA's own questions.
         msg_lower_fw = data.message.lower().strip()
+
+        # These always pass — no classification needed
         _auto_pass = (
-            # Short confirmations / cancellations
-            msg_lower_fw in {
-                "yes", "yes go ahead", "go ahead", "confirm",
-                "sure", "ok", "okay", "yep", "yup", "do it",
-                "no", "cancel", "stop", "never mind", "nevermind",
-                "undo", "undo delete", "rollback", "revert",
-                "restore"
-            }
-            # Pending action in progress — must let reply through
+            # Very short messages are almost always
+            # follow-ups to ARIA's own questions
+            len(data.message.strip()) < 30
+            # Pending action in progress
             or bool(ctx.get("pendingAction"))
+            # There's conversation history — it's a follow-up
+            or (data.history and len(data.history) > 0)
+            # Explicit CRM keywords
+            or any(kw in msg_lower_fw for kw in [
+                "client", "lead", "pipeline", "stage",
+                "email", "draft", "send", "meeting",
+                "schedule", "report", "invoice", "contract",
+                "proposal", "score", "follow", "import",
+                "undo", "rollback", "restore", "delete",
+                "create", "update", "add", "show", "list",
+                "yes", "no", "cancel", "confirm", "go ahead",
+                "generate", "download", "analyze", "search"
+            ])
         )
 
         if not _auto_pass:
@@ -2263,34 +2270,34 @@ async def aria_chat(
                 f"- Undo, rollback, restore actions\n"
                 f"- Greetings, asking what ARIA can do\n"
                 f"- Business advice related to any of the above\n\n"
-                f"BLOCKED topics (not CRM-related):\n"
-                f"- Writing code, debugging, programming help\n"
-                f"- Math problems, calculations unrelated to CRM\n"
-                f"- General knowledge, trivia, history, science\n"
+                f"BLOCKED topics:\n"
+                f"- Writing code, debugging, programming\n"
+                f"- General knowledge, trivia, history\n"
                 f"- Creative writing, stories, poems, jokes\n"
                 f"- Politics, news, sports, entertainment\n"
-                f"- Recipes, travel, personal life advice\n"
-                f"- Anything clearly unrelated to managing a business CRM\n\n"
+                f"- Recipes, travel, personal life advice\n\n"
                 f"Message: \"{data.message}\"\n\n"
                 f"Respond with ONLY one word: ALLOWED or BLOCKED"
             )
 
-            _guard = await generate(_guard_prompt, expect_json=False)
-            _guard = _guard.strip().upper()
+            _guard = await generate(
+                _guard_prompt, expect_json=False
+            )
 
-            if "BLOCKED" in _guard:
+            if "BLOCKED" in _guard.strip().upper():
                 return {
                     "ok":                 True,
                     "response":           (
-                        "I'm ARIA, your CRM assistant. I can only "
-                        "help with clients, pipeline, emails, "
-                        "meetings, reports, and sales.\n\n"
+                        "I'm ARIA, your CRM assistant. "
+                        "I can help with clients, pipeline, "
+                        "emails, meetings, reports, and sales.\n\n"
                         "What would you like to do?"
                     ),
                     "action_executed":    None,
                     "needs_confirmation": False,
                     "context":            {}
                 }
+        # ── End Firewall ────────────────────────────────
 
         # ── Intent Detection ───────────────────────────
         intent_prompt = f"""You are ARIA, an AI CRM assistant.
