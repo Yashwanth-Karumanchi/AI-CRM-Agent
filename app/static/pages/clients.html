@@ -840,7 +840,7 @@ let autoRefreshInterval = null;
 
 function startAutoRefresh() {
     if (autoRefreshInterval) return;
-    autoRefreshInterval = setInterval(loadClients, 5000);
+    autoRefreshInterval = setInterval(loadClients, 1800000);
 }
 
 function stopAutoRefresh() {
@@ -848,11 +848,6 @@ function stopAutoRefresh() {
         clearInterval(autoRefreshInterval);
         autoRefreshInterval = null;
     }
-}
-
-if (document.referrer.includes('/aria/import')) {
-    startAutoRefresh();
-    setTimeout(stopAutoRefresh, 120000);
 }
 
 // ── Init ───────────────────────────────────────────────

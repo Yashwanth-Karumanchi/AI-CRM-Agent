@@ -2228,6 +2228,69 @@ async def aria_chat(
                 f"Last done: "
                 f"{ctx['lastCompletedAction']}\n"
             )
+            
+        # ── Topic Firewall ─────────────────────────────
+        # Block anything unrelated to CRM business.
+        # Confirmations and cancellations always pass —
+        # they are responses to ARIA's own questions.
+        msg_lower_fw = data.message.lower().strip()
+        _auto_pass = (
+            # Short confirmations / cancellations
+            msg_lower_fw in {
+                "yes", "yes go ahead", "go ahead", "confirm",
+                "sure", "ok", "okay", "yep", "yup", "do it",
+                "no", "cancel", "stop", "never mind", "nevermind",
+                "undo", "undo delete", "rollback", "revert",
+                "restore"
+            }
+            # Pending action in progress — must let reply through
+            or bool(ctx.get("pendingAction"))
+        )
+
+        if not _auto_pass:
+            _guard_prompt = (
+                f"You are a topic classifier for a CRM assistant.\n"
+                f"Decide if this message is relevant to CRM use.\n\n"
+                f"ALLOWED topics:\n"
+                f"- Clients, leads, contacts, prospects\n"
+                f"- Pipeline, stages, follow-ups, deals\n"
+                f"- Emails, drafts, sending messages\n"
+                f"- Meetings, calendar, scheduling\n"
+                f"- Reports, analytics, revenue, forecasts\n"
+                f"- Contracts, invoices, proposals\n"
+                f"- Importing data, Excel, CSV files\n"
+                f"- Scoring, AI analysis of clients\n"
+                f"- Undo, rollback, restore actions\n"
+                f"- Greetings, asking what ARIA can do\n"
+                f"- Business advice related to any of the above\n\n"
+                f"BLOCKED topics (not CRM-related):\n"
+                f"- Writing code, debugging, programming help\n"
+                f"- Math problems, calculations unrelated to CRM\n"
+                f"- General knowledge, trivia, history, science\n"
+                f"- Creative writing, stories, poems, jokes\n"
+                f"- Politics, news, sports, entertainment\n"
+                f"- Recipes, travel, personal life advice\n"
+                f"- Anything clearly unrelated to managing a business CRM\n\n"
+                f"Message: \"{data.message}\"\n\n"
+                f"Respond with ONLY one word: ALLOWED or BLOCKED"
+            )
+
+            _guard = await generate(_guard_prompt, expect_json=False)
+            _guard = _guard.strip().upper()
+
+            if "BLOCKED" in _guard:
+                return {
+                    "ok":                 True,
+                    "response":           (
+                        "I'm ARIA, your CRM assistant. I can only "
+                        "help with clients, pipeline, emails, "
+                        "meetings, reports, and sales.\n\n"
+                        "What would you like to do?"
+                    ),
+                    "action_executed":    None,
+                    "needs_confirmation": False,
+                    "context":            {}
+                }
 
         # ── Intent Detection ───────────────────────────
         intent_prompt = f"""You are ARIA, an AI CRM assistant.
