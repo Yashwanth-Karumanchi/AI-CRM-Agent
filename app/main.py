@@ -2182,7 +2182,7 @@ async def aria_chat(
         settings = get_settings()
 
         pipeline = await sheets.get_pipeline_summary()
-        all_clients = await sheets.get_all_clients(limit=100)
+        all_clients = await sheets.get_all_clients()
 
         client_list = [
             {
@@ -2298,7 +2298,7 @@ SESSION: {session_text}
 CURRENT MESSAGE: {data.message}
 
 CLIENTS:
-{json.dumps(client_list[:50], indent=2)}
+{json.dumps(client_list, indent=2)}
 
 PIPELINE:
 Total: {pipeline.get('total_clients', 0)}
