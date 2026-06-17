@@ -2,6 +2,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 import secrets
 from app.config import get_settings
+import hmac
 
 security = HTTPBasic()
 
@@ -16,16 +17,12 @@ def verify_credentials(
     """
     settings = get_settings()
 
-    correct_username = secrets.compare_digest(
-        credentials.username.encode("utf-8"),
-        settings.api_username.encode("utf-8")
-    )
-    correct_password = secrets.compare_digest(
-        credentials.password.encode("utf-8"),
-        settings.api_password.encode("utf-8")
+    valid = (
+        hmac.compare_digest(credentials.username, settings.api_username) and
+        hmac.compare_digest(credentials.password, settings.api_password)
     )
 
-    if not (correct_username and correct_password):
+    if not (valid):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",

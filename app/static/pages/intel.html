@@ -10,113 +10,16 @@
 </head>
 <body>
 <div class="app-layout">
-
-    <!-- Topbar -->
-    <div class="topbar">
-        <div class="topbar-brand">
-            <div class="topbar-logo">
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"
-                     stroke="currentColor" stroke-width="1.5">
-                    <circle cx="10" cy="10" r="3"/>
-                    <path stroke-linecap="round"
-                        d="M10 2v2m0 12v2M2 10h2m12 0h2
-                           M4.93 4.93l1.41 1.41m7.32 7.32l1.41 1.41
-                           M4.93 15.07l1.41-1.41m7.32-7.32l1.41-1.41"/>
-                </svg>
-            </div>
-            <div>
-                <div class="topbar-title">ARIA</div>
-                <div class="topbar-subtitle">AI Relationship Intelligence</div>
-            </div>
-        </div>
-        <div class="topbar-right">
-            <div class="status-badge">
-                <span class="status-badge-dot"></span>
-                Connected
-            </div>
-            <button class="btn btn-secondary btn-sm" onclick="Nav.logout()">
-                <svg width="15" height="15" viewBox="0 0 20 20" fill="none"
-                     stroke="currentColor" stroke-width="1.5">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3
-                           3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                </svg>
-                Sign Out
-            </button>
-        </div>
-    </div>
-
+    <div id="aria-topbar"></div>
     <div class="app-body">
-
-        <!-- Sidebar -->
-        <div class="sidebar">
-            <nav class="sidebar-nav">
-                <div class="nav-section">
-                    <div class="nav-section-label">Main</div>
-                    <a href="/aria/dashboard" class="nav-item">
-                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="13" y="3" width="4" height="4" rx="1"/><rect x="13" y="10" width="4" height="7" rx="1"/><rect x="3" y="13" width="7" height="4" rx="1"/></svg>
-                        Dashboard
-                    </a>
-                    <a href="/aria/clients" class="nav-item">
-                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20H7m10 0v-2a4 4 0 00-4-4H7a4 4 0 00-4 4v2m14-10a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-                        Clients
-                    </a>
-                    <a href="/aria/chat" class="nav-item">
-                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
-                        Chat with ARIA
-                    </a>
-                </div>
-                <div class="nav-section">
-                    <div class="nav-section-label">Tools</div>
-                    <a href="/aria/calendar" class="nav-item">
-                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-                        Calendar
-                    </a>
-                    <a href="/aria/email" class="nav-item">
-                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                        Email
-                    </a>
-                    <a href="/aria/reports" class="nav-item">
-                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                        Reports
-                    </a>
-                </div>
-                <div class="nav-section">
-                    <div class="nav-section-label">Intelligence</div>
-                    <a href="/aria/intel" class="nav-item active">
-                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path stroke-linecap="round" d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-                        Intelligence
-                    </a>
-                    <a href="/aria/search" class="nav-item">
-                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
-                        Smart Search
-                    </a>
-                </div>
-                <div class="nav-section">
-                    <div class="nav-section-label">Data</div>
-                    <a href="/aria/import" class="nav-item">
-                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                        Bulk Import
-                    </a>
-                </div>
-            </nav>
-            <div class="sidebar-footer">
-                <div class="sidebar-stats" id="sidebarStats">
-                    <div class="text-muted text-xs">Loading...</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Main -->
+        <div id="aria-sidebar" class="sidebar"></div>
         <div class="main-content">
             <div class="page">
 
                 <div class="page-header">
                     <div>
                         <h1 class="page-title">Intelligence</h1>
-                        <p class="page-subtitle">
-                            AI-powered pipeline analysis and insights
-                        </p>
+                        <p class="page-subtitle">AI-powered pipeline analysis and insights</p>
                     </div>
                 </div>
 
@@ -124,51 +27,19 @@
                 <div class="card mb-4">
                     <div class="card-header">
                         <span class="card-title">Score a Client</span>
-                        <div class="flex items-center gap-2">
-                            <div class="stat-icon"
-                                 style="width:26px;height:26px;margin:0">
-                                <svg width="14" height="14"
-                                     viewBox="0 0 20 20" fill="none"
-                                     stroke="currentColor" stroke-width="1.5">
-                                    <path stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        d="M12 2l3.09 6.26L22 9.27l-5 4.87
-                                           1.18 6.88L12 17.77l-6.18 3.25L7
-                                           14.14 2 9.27l6.91-1.01L12 2z"/>
-                                </svg>
-                            </div>
-                            <span class="text-xs text-muted">AI-powered</span>
-                        </div>
+                        <span class="text-xs text-muted">AI-powered</span>
                     </div>
                     <div class="card-body">
                         <div class="flex gap-3 items-center">
                             <div class="input-with-icon" style="max-width:240px">
-                                <svg class="input-icon" viewBox="0 0 20 20"
-                                     fill="none" stroke="currentColor"
-                                     stroke-width="1.5">
-                                    <path stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        d="M17 20H7m10 0v-2a4 4 0 00-4-4H7
-                                           a4 4 0 00-4 4v2m14-10a4 4 0 11-8
-                                           0 4 4 0 018 0z"/>
+                                <svg class="input-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 20H7m10 0v-2a4 4 0 00-4-4H7a4 4 0 00-4 4v2m14-10a4 4 0 11-8 0 4 4 0 018 0z"/>
                                 </svg>
-                                <input id="scoreClientId"
-                                    class="input"
-                                    placeholder="CL-XXXXXXXX"
-                                    autocomplete="off"
-                                    onkeydown="if(event.key==='Enter')scoreClient()">
+                                <input id="scoreClientId" class="input" placeholder="CL-XXXXXXXX" autocomplete="off">
                             </div>
-                            <button class="btn btn-primary"
-                                onclick="scoreClient()"
-                                id="scoreBtn">
-                                <svg width="15" height="15"
-                                     viewBox="0 0 20 20" fill="none"
-                                     stroke="currentColor" stroke-width="1.5">
-                                    <path stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        d="M12 2l3.09 6.26L22 9.27l-5 4.87
-                                           1.18 6.88L12 17.77l-6.18 3.25L7
-                                           14.14 2 9.27l6.91-1.01L12 2z"/>
+                            <button id="scoreBtn" class="btn btn-primary">
+                                <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
                                 </svg>
                                 Score Client
                             </button>
@@ -177,202 +48,75 @@
                     </div>
                 </div>
 
-                <!-- Intelligence Cards Grid -->
-                <div class="grid-3 mb-4">
+                <!-- Intelligence Cards — data-endpoint & data-title drive JS -->
+                <div class="grid-3 mb-4" id="intelCards">
 
-                    <button class="intel-card"
-                        onclick="runIntel('pipeline/score','Pipeline Health Score')">
+                    <button class="intel-card" data-endpoint="pipeline/score" data-title="Pipeline Health Score">
                         <div class="intel-card-icon">
-                            <svg viewBox="0 0 20 20" fill="none"
-                                 stroke="currentColor" stroke-width="1.5">
-                                <path stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0
-                                       00-2 2v6m6 0V9a2 2 0 012-2h2a2 2
-                                       0 012 2v10m0 0V5a2 2 0 012-2h2a2
-                                       2 0 012 2v14"/>
+                            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6m6 0V9a2 2 0 012-2h2a2 2 0 012 2v10m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14"/>
                             </svg>
                         </div>
-                        <div class="intel-card-title">
-                            Pipeline Health Score
-                        </div>
-                        <div class="intel-card-desc">
-                            AI health check of your entire pipeline —
-                            at-risk clients, stalled deals, priorities
-                        </div>
-                        <div class="intel-card-arrow">
-                            Run Analysis
-                            <svg viewBox="0 0 20 20" fill="none"
-                                 stroke="currentColor" stroke-width="1.5">
-                                <path stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </div>
+                        <div class="intel-card-title">Pipeline Health Score</div>
+                        <div class="intel-card-desc">AI health check of your entire pipeline — at-risk clients, stalled deals, priorities</div>
+                        <div class="intel-card-arrow">Run Analysis <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></div>
                     </button>
 
-                    <button class="intel-card"
-                        onclick="runIntel('insights/patterns','Pattern Detection')">
+                    <button class="intel-card" data-endpoint="insights/patterns" data-title="Pattern Detection">
                         <div class="intel-card-icon">
-                            <svg viewBox="0 0 20 20" fill="none"
-                                 stroke="currentColor" stroke-width="1.5">
+                            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
                                 <circle cx="11" cy="11" r="8"/>
-                                <path stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    d="M21 21l-4.35-4.35"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/>
                             </svg>
                         </div>
-                        <div class="intel-card-title">
-                            Pattern Detection
-                        </div>
-                        <div class="intel-card-desc">
-                            Find segments, bottlenecks, growth
-                            opportunities and risks across all clients
-                        </div>
-                        <div class="intel-card-arrow">
-                            Run Analysis
-                            <svg viewBox="0 0 20 20" fill="none"
-                                 stroke="currentColor" stroke-width="1.5">
-                                <path stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </div>
+                        <div class="intel-card-title">Pattern Detection</div>
+                        <div class="intel-card-desc">Find segments, bottlenecks, growth opportunities and risks across all clients</div>
+                        <div class="intel-card-arrow">Run Analysis <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></div>
                     </button>
 
-                    <button class="intel-card"
-                        onclick="runIntel('insights/revenue-forecast','Revenue Forecast')">
+                    <button class="intel-card" data-endpoint="insights/revenue-forecast" data-title="Revenue Forecast">
                         <div class="intel-card-icon">
-                            <svg viewBox="0 0 20 20" fill="none"
-                                 stroke="currentColor" stroke-width="1.5">
-                                <path stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    d="M12 8c-1.657 0-3 .895-3 2s1.343
-                                       2 3 2 3 .895 3 2-1.343 2-3 2m0-8c
-                                       1.11 0 2.08.402 2.599 1M12 8V7m0
-                                       1v8m0 0v1m0-1c-1.11 0-2.08-.402
-                                       -2.599-1M21 12a9 9 0 11-18 0 9
-                                       9 0 0118 0z"/>
+                            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                             </svg>
                         </div>
-                        <div class="intel-card-title">
-                            Revenue Forecast
-                        </div>
-                        <div class="intel-card-desc">
-                            30-day and 90-day revenue projections
-                            based on pipeline stage and probability
-                        </div>
-                        <div class="intel-card-arrow">
-                            Run Analysis
-                            <svg viewBox="0 0 20 20" fill="none"
-                                 stroke="currentColor" stroke-width="1.5">
-                                <path stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </div>
+                        <div class="intel-card-title">Revenue Forecast</div>
+                        <div class="intel-card-desc">30-day and 90-day revenue projections based on pipeline stage and probability</div>
+                        <div class="intel-card-arrow">Run Analysis <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></div>
                     </button>
 
-                    <button class="intel-card"
-                        onclick="runIntel('insights/win-loss','Win/Loss Analysis')">
+                    <button class="intel-card" data-endpoint="insights/win-loss" data-title="Win/Loss Analysis">
                         <div class="intel-card-icon">
-                            <svg viewBox="0 0 20 20" fill="none"
-                                 stroke="currentColor" stroke-width="1.5">
-                                <path stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    d="M9 12l2 2 4-4M7.835 4.697a3.42
-                                       3.42 0 001.946-.806 3.42 3.42 0
-                                       014.438 0 3.42 3.42 0 001.946.806
-                                       3.42 3.42 0 013.138 3.138 3.42
-                                       3.42 0 00.806 1.946 3.42 3.42 0
-                                       010 4.438 3.42 3.42 0 00-.806
-                                       1.946 3.42 3.42 0 01-3.138 3.138
-                                       3.42 3.42 0 00-1.946.806 3.42
-                                       3.42 0 01-4.438 0 3.42 3.42 0
-                                       00-1.946-.806 3.42 3.42 0
-                                       01-3.138-3.138 3.42 3.42 0
-                                       00-.806-1.946 3.42 3.42 0 010-4.438
-                                       3.42 3.42 0 00.806-1.946 3.42
-                                       3.42 0 013.138-3.138z"/>
+                            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/>
                             </svg>
                         </div>
-                        <div class="intel-card-title">
-                            Win / Loss Analysis
-                        </div>
-                        <div class="intel-card-desc">
-                            What patterns make deals succeed or fail —
-                            winning vs losing client profiles
-                        </div>
-                        <div class="intel-card-arrow">
-                            Run Analysis
-                            <svg viewBox="0 0 20 20" fill="none"
-                                 stroke="currentColor" stroke-width="1.5">
-                                <path stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </div>
+                        <div class="intel-card-title">Win / Loss Analysis</div>
+                        <div class="intel-card-desc">What patterns make deals succeed or fail — winning vs losing client profiles</div>
+                        <div class="intel-card-arrow">Run Analysis <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></div>
                     </button>
 
-                    <button class="intel-card"
-                        onclick="runIntel('recommendations/daily','Daily Recommendations')">
+                    <button class="intel-card" data-endpoint="recommendations/daily" data-title="Daily Recommendations">
                         <div class="intel-card-icon">
-                            <svg viewBox="0 0 20 20" fill="none"
-                                 stroke="currentColor" stroke-width="1.5">
-                                <path stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0
-                                       002 2h10a2 2 0 002-2V7a2 2 0
-                                       00-2-2h-2M9 5a2 2 0 002 2h2a2
-                                       2 0 002-2M9 5a2 2 0 012-2h2a2
-                                       2 0 012 2m-6 9l2 2 4-4"/>
+                            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
                             </svg>
                         </div>
-                        <div class="intel-card-title">
-                            Daily Recommendations
-                        </div>
-                        <div class="intel-card-desc">
-                            AI-prioritised list of who to contact
-                            and exactly what to do today
-                        </div>
-                        <div class="intel-card-arrow">
-                            Run Analysis
-                            <svg viewBox="0 0 20 20" fill="none"
-                                 stroke="currentColor" stroke-width="1.5">
-                                <path stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </div>
+                        <div class="intel-card-title">Daily Recommendations</div>
+                        <div class="intel-card-desc">AI-prioritised list of who to contact and exactly what to do today</div>
+                        <div class="intel-card-arrow">Run Analysis <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></div>
                     </button>
 
-                    <button class="intel-card"
-                        onclick="runIntel('recommendations/stale?days_inactive=14','Stale Clients')">
+                    <button class="intel-card" data-endpoint="recommendations/stale?days_inactive=14" data-title="Stale Clients">
                         <div class="intel-card-icon">
-                            <svg viewBox="0 0 20 20" fill="none"
-                                 stroke="currentColor" stroke-width="1.5">
+                            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
                                 <circle cx="12" cy="12" r="10"/>
-                                <path stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    d="M12 6v6l4 2"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2"/>
                             </svg>
                         </div>
-                        <div class="intel-card-title">
-                            Stale Clients
-                        </div>
-                        <div class="intel-card-desc">
-                            Clients with no activity in 14+ days —
-                            who needs immediate re-engagement
-                        </div>
-                        <div class="intel-card-arrow">
-                            Run Analysis
-                            <svg viewBox="0 0 20 20" fill="none"
-                                 stroke="currentColor" stroke-width="1.5">
-                                <path stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </div>
+                        <div class="intel-card-title">Stale Clients</div>
+                        <div class="intel-card-desc">Clients with no activity in 14+ days — who needs immediate re-engagement</div>
+                        <div class="intel-card-arrow">Run Analysis <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></div>
                     </button>
 
                 </div>
@@ -380,28 +124,19 @@
                 <!-- Result Panel -->
                 <div id="intelResult" class="result-panel hidden">
                     <div class="result-panel-header">
-                        <span class="card-title" id="intelResultTitle">
-                            Results
-                        </span>
+                        <span class="card-title" id="intelResultTitle">Results</span>
                         <div class="flex items-center gap-3">
-                            <span class="text-muted text-xs"
-                                  id="intelResultTime"></span>
-                            <button class="btn btn-ghost btn-sm"
-                                onclick="document.getElementById('intelResult').classList.add('hidden')">
-                                <svg width="14" height="14"
-                                     viewBox="0 0 20 20" fill="none"
-                                     stroke="currentColor" stroke-width="1.5">
-                                    <path stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        d="M6 18L18 6M6 6l12 12"/>
+                            <span class="text-muted text-xs" id="intelResultTime"></span>
+                            <button id="closeResultBtn" class="btn btn-ghost btn-sm">
+                                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
                                 </svg>
                                 Close
                             </button>
                         </div>
                     </div>
                     <div class="result-panel-body">
-                        <pre id="intelResultContent"
-                             class="json-viewer"></pre>
+                        <pre id="intelResultContent" class="json-viewer"></pre>
                     </div>
                 </div>
 
@@ -409,191 +144,9 @@
         </div>
     </div>
 </div>
-
-<div class="toast-container" id="toastContainer"></div>
-
 <script src="/static/js/api.js"></script>
 <script src="/static/js/utils.js"></script>
 <script src="/static/js/nav.js"></script>
-<script>
-Nav.init();
-
-// ── Run Intelligence Analysis ──────────────────────────
-async function runIntel(endpoint, title) {
-    const resultEl  = document.getElementById('intelResult');
-    const titleEl   = document.getElementById('intelResultTitle');
-    const contentEl = document.getElementById('intelResultContent');
-    const timeEl    = document.getElementById('intelResultTime');
-
-    titleEl.textContent  = title;
-    timeEl.textContent   = '';
-    contentEl.innerHTML  = `
-        <div class="loading-overlay">
-            <div class="loading-spinner"></div>
-            Running AI analysis...
-        </div>
-    `;
-    resultEl.classList.remove('hidden');
-    resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-    try {
-        const start = Date.now();
-        const res   = await API.get(`/${endpoint}`);
-        const secs  = ((Date.now() - start) / 1000).toFixed(1);
-
-        timeEl.textContent  = `${secs}s`;
-        contentEl.innerHTML = prettyJson(res);
-        Toast.success(`${title} complete`);
-
-    } catch (e) {
-        contentEl.innerHTML = `
-            <div class="alert alert-error">
-                <svg width="16" height="16" viewBox="0 0 20 20" fill="none"
-                     stroke="currentColor" stroke-width="1.5">
-                    <circle cx="10" cy="10" r="8"/>
-                    <path stroke-linecap="round" d="M10 7v4m0 2v1"/>
-                </svg>
-                ${escapeHtml(e.message)}
-            </div>
-        `;
-        Toast.error(`${title} failed: ${e.message}`);
-    }
-}
-
-// ── Score Single Client ────────────────────────────────
-async function scoreClient() {
-    const clientId = document.getElementById('scoreClientId').value.trim();
-    if (!clientId) {
-        Toast.error('Please enter a Client ID');
-        document.getElementById('scoreClientId').focus();
-        return;
-    }
-
-    const resultEl = document.getElementById('scoreResult');
-    const btn      = document.getElementById('scoreBtn');
-
-    resultEl.innerHTML = `
-        <div class="loading-overlay">
-            <div class="loading-spinner"></div>
-            Scoring client...
-        </div>
-    `;
-    resultEl.classList.remove('hidden');
-    setLoading(btn, true);
-
-    try {
-        const res = await API.get(`/clients/${clientId}/score`);
-        const s   = res.score;
-
-        resultEl.innerHTML = `
-            <div class="grid-2 mb-3" style="gap:12px">
-                <div class="stat-card" style="padding:16px">
-                    <div class="stat-value">
-                        ${s.lead_score}
-                        <span class="text-muted"
-                              style="font-size:16px">/10</span>
-                    </div>
-                    <div class="stat-label">Lead Score</div>
-                </div>
-                <div class="stat-card" style="padding:16px">
-                    <div class="stat-value">
-                        ${s.estimated_close_probability}
-                        <span class="text-muted"
-                              style="font-size:16px">%</span>
-                    </div>
-                    <div class="stat-label">Close Probability</div>
-                </div>
-            </div>
-
-            <div class="card card-p">
-                <div class="flex gap-4 mb-3 flex-wrap">
-                    <div>
-                        <div class="input-label">Churn Risk</div>
-                        <span class="badge ${
-                            s.churn_risk === 'High'   ? 'badge-high'   :
-                            s.churn_risk === 'Medium' ? 'badge-medium' :
-                            'badge-low'
-                        }">
-                            ${escapeHtml(s.churn_risk)}
-                        </span>
-                    </div>
-                    <div>
-                        <div class="input-label">Opportunity</div>
-                        <span class="badge badge-stage">
-                            ${escapeHtml(s.opportunity_value)}
-                        </span>
-                    </div>
-                    <div>
-                        <div class="input-label">Sentiment</div>
-                        <span class="badge badge-stage">
-                            ${escapeHtml(s.sentiment)}
-                        </span>
-                    </div>
-                    ${s.suggested_stage ? `
-                    <div>
-                        <div class="input-label">Suggested Stage</div>
-                        <span class="badge badge-stage">
-                            ${escapeHtml(s.suggested_stage)}
-                        </span>
-                    </div>
-                    ` : ''}
-                </div>
-
-                <div class="input-label">Best Next Action</div>
-                <div class="text-secondary mb-3">
-                    ${escapeHtml(s.best_next_action)}
-                </div>
-
-                <div class="input-label">Summary</div>
-                <div class="text-secondary text-sm mb-3"
-                     style="line-height:1.65">
-                    ${escapeHtml(s.summary)}
-                </div>
-
-                ${(s.recommended_actions || []).length ? `
-                <div class="input-label">Recommended Actions</div>
-                <ul style="padding-left:18px;
-                           color:var(--text-secondary);
-                           font-size:13px;
-                           line-height:1.8">
-                    ${s.recommended_actions.map(a =>
-                        `<li>${escapeHtml(a)}</li>`
-                    ).join('')}
-                </ul>
-                ` : ''}
-
-                ${(s.talking_points || []).length ? `
-                <div class="input-label mt-3">Talking Points</div>
-                <ul style="padding-left:18px;
-                           color:var(--text-secondary);
-                           font-size:13px;
-                           line-height:1.8">
-                    ${s.talking_points.map(p =>
-                        `<li>${escapeHtml(p)}</li>`
-                    ).join('')}
-                </ul>
-                ` : ''}
-            </div>
-        `;
-
-        Toast.success('Client scored successfully');
-
-    } catch (e) {
-        resultEl.innerHTML = `
-            <div class="alert alert-error">
-                <svg width="16" height="16" viewBox="0 0 20 20" fill="none"
-                     stroke="currentColor" stroke-width="1.5">
-                    <circle cx="10" cy="10" r="8"/>
-                    <path stroke-linecap="round" d="M10 7v4m0 2v1"/>
-                </svg>
-                ${escapeHtml(e.message)}
-            </div>
-        `;
-        Toast.error('Scoring failed: ' + e.message);
-    } finally {
-        setLoading(btn, false);
-    }
-}
-</script>
+<script src="/static/js/intel.js"></script>
 </body>
 </html>

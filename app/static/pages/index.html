@@ -8,73 +8,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/aria.css">
     <style>
-        body {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            background: var(--bg-primary);
-        }
-
-        .login-wrap {
-            width: 100%;
-            max-width: 440px;
-            padding: 24px;
-        }
-
-        .login-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            box-shadow: var(--shadow-lg);
-            padding: 40px;
-        }
-
-        .login-logo {
-            width: 56px;
-            height: 56px;
-            background: var(--accent-primary);
-            border-radius: var(--radius-md);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            margin: 0 auto 20px;
-        }
-
-        .login-title {
-            text-align: center;
-            font-size: 28px;
-            font-weight: 700;
-            color: var(--accent-primary);
-            letter-spacing: -0.02em;
-            margin-bottom: 4px;
-        }
-
-        .login-subtitle {
-            text-align: center;
-            font-size: 12px;
-            color: var(--text-muted);
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-            margin-bottom: 32px;
-            font-weight: 500;
-        }
-
-        .login-footer {
-            margin-top: 20px;
-            text-align: center;
-            font-size: 11px;
-            color: var(--text-light);
-        }
-
-        .login-footer svg {
-            width: 12px;
-            height: 12px;
-            display: inline;
-            vertical-align: middle;
-            margin-right: 4px;
-        }
+        body { display:flex; align-items:center; justify-content:center; min-height:100vh; background:var(--bg-primary); }
+        .login-wrap { width:100%; max-width:440px; padding:24px; }
+        .login-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg); box-shadow:var(--shadow-lg); padding:40px; }
+        .login-logo { width:56px; height:56px; background:var(--accent-primary); border-radius:var(--radius-md); display:flex; align-items:center; justify-content:center; color:white; margin:0 auto 20px; }
+        .login-title { text-align:center; font-size:28px; font-weight:700; color:var(--accent-primary); letter-spacing:-0.02em; margin-bottom:4px; }
+        .login-subtitle { text-align:center; font-size:12px; color:var(--text-muted); letter-spacing:0.06em; text-transform:uppercase; margin-bottom:32px; font-weight:500; }
+        .login-footer { margin-top:20px; text-align:center; font-size:11px; color:var(--text-light); }
+        .login-footer svg { width:12px; height:12px; display:inline; vertical-align:middle; margin-right:4px; }
     </style>
 </head>
 <body>
@@ -82,103 +23,64 @@
 <div class="login-wrap">
     <div class="login-card">
 
-        <!-- Logo -->
         <div class="login-logo">
-            <svg width="28" height="28" viewBox="0 0 20 20"
-                 fill="none" stroke="currentColor" stroke-width="1.5">
+            <svg width="28" height="28" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
                 <circle cx="10" cy="10" r="3"/>
-                <path stroke-linecap="round"
-                    d="M10 2v2m0 12v2M2 10h2m12 0h2
-                       M4.93 4.93l1.41 1.41m7.32 7.32l1.41 1.41
-                       M4.93 15.07l1.41-1.41m7.32-7.32l1.41-1.41"/>
+                <path stroke-linecap="round" d="M10 2v2m0 12v2M2 10h2m12 0h2M4.93 4.93l1.41 1.41m7.32 7.32l1.41 1.41M4.93 15.07l1.41-1.41m7.32-7.32l1.41-1.41"/>
             </svg>
         </div>
 
         <div class="login-title">ARIA</div>
-        <div class="login-subtitle">
-            AI Relationship Intelligence Assistant
-        </div>
+        <div class="login-subtitle">AI Relationship Intelligence Assistant</div>
 
-        <!-- Form -->
         <div class="input-group">
-            <label class="input-label" for="loginUrl">
-                API URL
-            </label>
-            <input id="loginUrl"
-                type="url"
-                class="input"
+            <label class="input-label" for="loginUrl">API URL</label>
+            <input id="loginUrl" type="url" class="input"
                 placeholder="https://ai-crm-agent-ol9e.onrender.com"
                 value="https://ai-crm-agent-ol9e.onrender.com"
-                autocomplete="url"
-                spellcheck="false">
+                autocomplete="url" spellcheck="false">
         </div>
 
         <div class="input-group">
-            <label class="input-label" for="loginUsername">
-                Username
-            </label>
+            <label class="input-label" for="loginUsername">Username</label>
             <div class="input-with-icon">
-                <svg class="input-icon" viewBox="0 0 20 20"
-                     fill="none" stroke="currentColor" stroke-width="1.5">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                        d="M10 10a4 4 0 100-8 4 4 0 000 8zm-7 8a7 7 0 0114 0"/>
+                <svg class="input-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10 10a4 4 0 100-8 4 4 0 000 8zm-7 8a7 7 0 0114 0"/>
                 </svg>
-                <input id="loginUsername"
-                    type="text"
-                    class="input"
-                    placeholder="admin"
-                    autocomplete="username"
-                    spellcheck="false">
+                <input id="loginUsername" type="text" class="input"
+                    placeholder="admin" autocomplete="username" spellcheck="false">
             </div>
         </div>
 
         <div class="input-group">
-            <label class="input-label" for="loginPassword">
-                Password
-            </label>
+            <label class="input-label" for="loginPassword">Password</label>
             <div class="input-with-icon">
-                <svg class="input-icon" viewBox="0 0 20 20"
-                     fill="none" stroke="currentColor" stroke-width="1.5">
+                <svg class="input-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
                     <rect x="3" y="11" width="14" height="8" rx="2"/>
-                    <path stroke-linecap="round"
-                        d="M7 11V7a5 5 0 0110 0v4"/>
+                    <path stroke-linecap="round" d="M7 11V7a5 5 0 0110 0v4"/>
                 </svg>
-                <input id="loginPassword"
-                    type="password"
-                    class="input"
-                    placeholder="••••••••"
-                    autocomplete="current-password"
-                    onkeydown="if(event.key==='Enter') login()">
+                <input id="loginPassword" type="password" class="input"
+                    placeholder="••••••••" autocomplete="current-password">
             </div>
         </div>
 
-        <!-- Error message -->
         <div id="loginError" class="alert alert-error hidden">
-            <svg width="16" height="16" viewBox="0 0 20 20"
-                 fill="none" stroke="currentColor" stroke-width="1.5">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
                 <circle cx="10" cy="10" r="8"/>
                 <path stroke-linecap="round" d="M10 7v4m0 2v1"/>
             </svg>
             <span id="loginErrorMsg"></span>
         </div>
 
-        <!-- Submit -->
-        <button onclick="login()"
-            id="loginBtn"
-            class="btn btn-primary w-full btn-lg mt-3">
-            <svg width="18" height="18" viewBox="0 0 20 20"
-                 fill="none" stroke="currentColor" stroke-width="1.5">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M11 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0
-                       01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3
-                       3 0 013 3v1"/>
+        <button id="loginBtn" class="btn btn-primary w-full btn-lg mt-3">
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M11 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
             </svg>
             Connect to ARIA
         </button>
 
         <div class="login-footer">
-            <svg viewBox="0 0 20 20" fill="none"
-                 stroke="currentColor" stroke-width="1.5">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
                 <rect x="3" y="11" width="14" height="8" rx="2"/>
                 <path stroke-linecap="round" d="M7 11V7a5 5 0 0110 0v4"/>
             </svg>
@@ -189,125 +91,7 @@
 </div>
 
 <script src="/static/js/api.js"></script>
-<script>
-// Clear any stale auth
-API.clear();
-
-async function login() {
-    const urlEl   = document.getElementById('loginUrl');
-    const userEl  = document.getElementById('loginUsername');
-    const passEl  = document.getElementById('loginPassword');
-    const btn     = document.getElementById('loginBtn');
-    const errEl   = document.getElementById('loginError');
-    const errMsg  = document.getElementById('loginErrorMsg');
-
-    const url      = urlEl.value.trim();
-    const username = userEl.value.trim();
-    const password = passEl.value;
-
-    // Hide previous error
-    errEl.classList.add('hidden');
-
-    // Client-side validation
-    if (!url) {
-        showError('Please enter the API URL.');
-        urlEl.focus();
-        return;
-    }
-    if (!username) {
-        showError('Please enter your username.');
-        userEl.focus();
-        return;
-    }
-    if (!password) {
-        showError('Please enter your password.');
-        passEl.focus();
-        return;
-    }
-
-    // Loading state
-    btn.disabled = true;
-    btn._originalHTML = btn.innerHTML;
-    btn.innerHTML = `
-        <div style="width:18px;height:18px;border:2px solid
-             rgba(255,255,255,0.35);border-top-color:white;
-             border-radius:50%;animation:spin 0.75s linear infinite">
-        </div>
-        Connecting...
-    `;
-
-    try {
-        API.init(url, username, password);
-
-        const res = await API.get('/health');
-
-        if (res.ok) {
-            window.location.href = '/aria/dashboard';
-        } else {
-            throw new Error('Health check failed');
-        }
-
-    } catch (e) {
-        API.clear();
-        passEl.value = '';
-
-        const msg = e.message || '';
-
-        if (
-            msg.includes('401') ||
-            msg.includes('403') ||
-            msg.includes('Session expired') ||
-            msg.includes('Unauthorized') ||
-            msg.toLowerCase().includes('failed: 401') ||
-            msg.toLowerCase().includes('failed: 403')
-        ) {
-            showError('Incorrect username or password. Please try again.');
-            passEl.focus();
-        } else if (
-            msg.includes('Network') ||
-            msg.includes('fetch') ||
-            msg.includes('reach') ||
-            msg.includes('connection') ||
-            msg.includes('ERR_')
-        ) {
-            showError(
-                'Cannot reach the server. ' +
-                'Check the API URL and try again.'
-            );
-            urlEl.focus();
-        } else if (msg.includes('Rate limit')) {
-            showError('Too many attempts. Please wait a moment.');
-        } else if (msg.includes('Health check')) {
-            showError(
-                'Connected but health check failed. ' +
-                'The server may be starting up — try again in 30 seconds.'
-            );
-        } else {
-            showError('Login failed: ' + msg);
-        }
-
-        // Restore button
-        btn.disabled = false;
-        btn.innerHTML = btn._originalHTML;
-    }
-}
-
-function showError(msg) {
-    const errEl  = document.getElementById('loginError');
-    const errMsg = document.getElementById('loginErrorMsg');
-    errMsg.textContent = msg;
-    errEl.classList.remove('hidden');
-}
-
-// Inline spin keyframe (CSS not loaded until body renders)
-const style = document.createElement('style');
-style.textContent = '@keyframes spin{to{transform:rotate(360deg)}}';
-document.head.appendChild(style);
-
-// Enter key on any field triggers login
-document.addEventListener('keydown', e => {
-    if (e.key === 'Enter') login();
-});
-</script>
+<script src="/static/js/utils.js"></script>
+<script src="/static/js/login.js"></script>
 </body>
 </html>

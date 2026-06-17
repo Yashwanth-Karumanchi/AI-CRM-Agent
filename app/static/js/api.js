@@ -16,23 +16,23 @@ const API = (() => {
                 username + ':' + password
             ))
         );
-        localStorage.setItem('aria_url', _baseUrl);
-        localStorage.setItem('aria_auth', _authHeader);
-        localStorage.setItem('aria_user', username);
+        sessionStorage.setItem('aria_url', _baseUrl);
+        sessionStorage.setItem('aria_auth', _authHeader);
+        sessionStorage.setItem('aria_user', username);
     }
 
     function loadFromStorage() {
-        _baseUrl     = localStorage.getItem('aria_url')  || '';
-        _authHeader  = localStorage.getItem('aria_auth') || '';
+        _baseUrl     = sessionStorage.getItem('aria_url')  || '';
+        _authHeader  = sessionStorage.getItem('aria_auth') || '';
         return !!(_baseUrl && _authHeader);
     }
 
     function clear() {
         _baseUrl = '';
         _authHeader = '';
-        localStorage.removeItem('aria_url');
-        localStorage.removeItem('aria_auth');
-        localStorage.removeItem('aria_user');
+        sessionStorage.removeItem('aria_url');
+        sessionStorage.removeItem('aria_auth');
+        sessionStorage.removeItem('aria_user');
     }
 
     function redirectToLogin() {
@@ -41,7 +41,7 @@ const API = (() => {
     }
 
     function getUsername() {
-        return localStorage.getItem('aria_user') || 'User';
+        return sessionStorage.getItem('aria_user') || 'User';
     }
 
     // ── Core Request ───────────────────────────────────

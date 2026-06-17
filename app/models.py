@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, field_validator, Field
 from typing import Optional, List
 from enum import Enum
 from datetime import datetime
@@ -11,6 +11,13 @@ class Priority(str, Enum):
     medium = "Medium"
     high   = "High"
 
+class ClientCreate(BaseModel):
+    name:     str = Field(..., min_length=1, max_length=200)
+    email:    Optional[str] = Field(None, max_length=254)
+    company:  Optional[str] = Field(None, max_length=200)
+    phone:    Optional[str] = Field(None, max_length=30)
+    service:  Optional[str] = Field(None, max_length=200)
+    notes:    Optional[str] = Field(None, max_length=2000)
 
 class Stage(str, Enum):
     new                    = "New"

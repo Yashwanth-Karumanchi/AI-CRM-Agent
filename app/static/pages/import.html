@@ -8,324 +8,74 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/aria.css">
     <style>
-        .import-stat {
-            text-align: center;
-            padding: 20px;
-            border-radius: var(--radius-md);
-            border: 1px solid var(--border);
-            background: var(--bg-card);
-        }
-        .import-stat-value {
-            font-size: 32px;
-            font-weight: 700;
-            line-height: 1;
-            margin-bottom: 4px;
-            letter-spacing: -0.02em;
-        }
-        .import-stat-label {
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            font-weight: 600;
-            color: var(--text-muted);
-        }
+        .import-stat { text-align:center; padding:20px; border-radius:var(--radius-md); border:1px solid var(--border); background:var(--bg-card); }
+        .import-stat-value { font-size:32px; font-weight:700; line-height:1; margin-bottom:4px; letter-spacing:-0.02em; }
+        .import-stat-label { font-size:11px; text-transform:uppercase; letter-spacing:0.05em; font-weight:600; color:var(--text-muted); }
     </style>
 </head>
 <body>
 <div class="app-layout">
-
-    <!-- Topbar -->
-    <div class="topbar">
-        <div class="topbar-brand">
-            <div class="topbar-logo">
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"
-                     stroke="currentColor" stroke-width="1.5">
-                    <circle cx="10" cy="10" r="3"/>
-                    <path stroke-linecap="round"
-                        d="M10 2v2m0 12v2M2 10h2m12 0h2
-                           M4.93 4.93l1.41 1.41m7.32 7.32l1.41 1.41
-                           M4.93 15.07l1.41-1.41m7.32-7.32l1.41-1.41"/>
-                </svg>
-            </div>
-            <div>
-                <div class="topbar-title">ARIA</div>
-                <div class="topbar-subtitle">AI Relationship Intelligence</div>
-            </div>
-        </div>
-        <div class="topbar-right">
-            <div class="status-badge">
-                <span class="status-badge-dot"></span>
-                Connected
-            </div>
-            <button class="btn btn-secondary btn-sm" onclick="Nav.logout()">
-                <svg width="15" height="15" viewBox="0 0 20 20" fill="none"
-                     stroke="currentColor" stroke-width="1.5">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3
-                           3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                </svg>
-                Sign Out
-            </button>
-        </div>
-    </div>
-
+    <div id="aria-topbar"></div>
     <div class="app-body">
-
-        <!-- Sidebar -->
-        <div class="sidebar">
-            <nav class="sidebar-nav">
-                <div class="nav-section">
-                    <div class="nav-section-label">Main</div>
-                    <a href="/aria/dashboard" class="nav-item">
-                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="13" y="3" width="4" height="4" rx="1"/><rect x="13" y="10" width="4" height="7" rx="1"/><rect x="3" y="13" width="7" height="4" rx="1"/></svg>
-                        Dashboard
-                    </a>
-                    <a href="/aria/clients" class="nav-item">
-                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20H7m10 0v-2a4 4 0 00-4-4H7a4 4 0 00-4 4v2m14-10a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-                        Clients
-                    </a>
-                    <a href="/aria/chat" class="nav-item">
-                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
-                        Chat with ARIA
-                    </a>
-                </div>
-                <div class="nav-section">
-                    <div class="nav-section-label">Tools</div>
-                    <a href="/aria/calendar" class="nav-item">
-                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-                        Calendar
-                    </a>
-                    <a href="/aria/email" class="nav-item">
-                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                        Email
-                    </a>
-                    <a href="/aria/reports" class="nav-item">
-                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                        Reports
-                    </a>
-                </div>
-                <div class="nav-section">
-                    <div class="nav-section-label">Intelligence</div>
-                    <a href="/aria/intel" class="nav-item">
-                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path stroke-linecap="round" d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-                        Intelligence
-                    </a>
-                    <a href="/aria/search" class="nav-item">
-                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
-                        Smart Search
-                    </a>
-                </div>
-                <div class="nav-section">
-                    <div class="nav-section-label">Data</div>
-                    <a href="/aria/import" class="nav-item active">
-                        <svg class="nav-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                        Bulk Import
-                    </a>
-                </div>
-            </nav>
-            <div class="sidebar-footer">
-                <div class="sidebar-stats" id="sidebarStats">
-                    <div class="text-muted text-xs">Loading...</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Main -->
+        <div id="aria-sidebar" class="sidebar"></div>
         <div class="main-content">
             <div class="page">
 
-                <!-- Header -->
                 <div class="page-header">
                     <div>
                         <h1 class="page-title">Bulk Import</h1>
-                        <p class="page-subtitle">
-                            Import clients from Excel or CSV files
-                        </p>
+                        <p class="page-subtitle">Import clients from Excel or CSV files</p>
                     </div>
                     <a href="/aria/clients" class="btn btn-secondary btn-sm">
-                        <svg width="14" height="14" viewBox="0 0 20 20"
-                             fill="none" stroke="currentColor" stroke-width="1.5">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                d="M15 19l-7-7 7-7"/>
+                        <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
                         </svg>
                         Back to Clients
                     </a>
                 </div>
 
-                <!-- ── Phase 1: Upload ─────────────────────────── -->
+                <!-- Phase 1: Upload -->
                 <div id="phaseUpload">
-
-                    <!-- Drop Zone -->
-                    <div class="drop-zone"
-                         id="dropZone"
-                         role="button"
-                         tabindex="0"
-                         aria-label="Click or drop a file to upload"
-                         onclick="document.getElementById('fileInput').click()"
-                         ondragover="handleDragOver(event)"
-                         ondragleave="handleDragLeave(event)"
-                         ondrop="handleDrop(event)"
-                         onkeydown="if(event.key==='Enter'||event.key===' ')document.getElementById('fileInput').click()">
-
+                    <div class="drop-zone" id="dropZone" role="button" tabindex="0"
+                         aria-label="Click or drop a file to upload">
                         <div class="drop-zone-icon">
-                            <svg viewBox="0 0 20 20" fill="none"
-                                 stroke="currentColor" stroke-width="1.5">
-                                <path stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    d="M4 16v1a3 3 0 003 3h10a3 3 0
-                                       003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
                             </svg>
                         </div>
-
-                        <div class="font-semibold text-primary mb-2"
-                             style="font-size:16px">
+                        <div class="font-semibold text-primary mb-2" style="font-size:16px">
                             Drop your Excel or CSV file here
                         </div>
-                        <div class="text-muted text-sm mb-4">
-                            or click to browse files
-                        </div>
-                        <div class="flex gap-2 justify-center flex-wrap">
+                        <div class="text-muted text-sm mb-4">or click to browse files</div>
+                        <button id="browseBtn" class="btn btn-secondary" type="button">Browse Files</button>
+                        <div class="flex gap-2 justify-center flex-wrap mt-3">
                             <span class="badge badge-stage">.xlsx</span>
                             <span class="badge badge-stage">.xls</span>
                             <span class="badge badge-stage">.csv</span>
                         </div>
                     </div>
-
-                    <input type="file"
-                           id="fileInput"
-                           accept=".xlsx,.xls,.csv"
-                           style="display:none"
-                           onchange="handleFileSelect(event)">
+                    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none">
 
                     <!-- Format Guide -->
                     <div class="card mt-4">
                         <div class="card-header">
                             <span class="card-title">Expected Format</span>
-                            <span class="text-xs text-muted">
-                                Column order does not matter
-                            </span>
+                            <span class="text-xs text-muted">Column order does not matter</span>
                         </div>
                         <div class="card-body">
-                            <p class="text-secondary text-sm mb-3">
-                                Your file needs at minimum a
-                                <strong>Name</strong> column.
-                                All other columns are optional.
-                            </p>
+                            <p class="text-secondary text-sm mb-3">Your file needs at minimum a <strong>Name</strong> column. All other columns are optional.</p>
                             <div class="table-wrapper">
                                 <table class="table">
-                                    <thead>
-                                        <tr>
-                                            <th>Column</th>
-                                            <th>Required</th>
-                                            <th>Example</th>
-                                            <th>Notes</th>
-                                        </tr>
-                                    </thead>
+                                    <thead><tr><th>Column</th><th>Required</th><th>Example</th><th>Notes</th></tr></thead>
                                     <tbody>
-                                        <tr>
-                                            <td class="font-semibold text-accent">
-                                                Name
-                                            </td>
-                                            <td>
-                                                <span class="badge badge-high">
-                                                    Required
-                                                </span>
-                                            </td>
-                                            <td class="text-secondary">
-                                                John Smith
-                                            </td>
-                                            <td class="text-muted text-xs">
-                                                Full name of client
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="font-semibold">Email</td>
-                                            <td>
-                                                <span class="badge badge-low">
-                                                    Optional
-                                                </span>
-                                            </td>
-                                            <td class="text-secondary">
-                                                john@company.com
-                                            </td>
-                                            <td class="text-muted text-xs">
-                                                Used for duplicate detection
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="font-semibold">Company</td>
-                                            <td>
-                                                <span class="badge badge-low">
-                                                    Optional
-                                                </span>
-                                            </td>
-                                            <td class="text-secondary">
-                                                Acme Corp
-                                            </td>
-                                            <td class="text-muted text-xs"></td>
-                                        </tr>
-                                        <tr>
-                                            <td class="font-semibold">Phone</td>
-                                            <td>
-                                                <span class="badge badge-low">
-                                                    Optional
-                                                </span>
-                                            </td>
-                                            <td class="text-secondary">
-                                                801-555-0100
-                                            </td>
-                                            <td class="text-muted text-xs"></td>
-                                        </tr>
-                                        <tr>
-                                            <td class="font-semibold">Service</td>
-                                            <td>
-                                                <span class="badge badge-low">
-                                                    Optional
-                                                </span>
-                                            </td>
-                                            <td class="text-secondary">
-                                                AI Automation
-                                            </td>
-                                            <td class="text-muted text-xs"></td>
-                                        </tr>
-                                        <tr>
-                                            <td class="font-semibold">Priority</td>
-                                            <td>
-                                                <span class="badge badge-low">
-                                                    Optional
-                                                </span>
-                                            </td>
-                                            <td class="text-secondary">High</td>
-                                            <td class="text-muted text-xs">
-                                                High / Medium / Low
-                                                (default: Medium)
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="font-semibold">Stage</td>
-                                            <td>
-                                                <span class="badge badge-low">
-                                                    Optional
-                                                </span>
-                                            </td>
-                                            <td class="text-secondary">New</td>
-                                            <td class="text-muted text-xs">
-                                                New / Contacted / etc
-                                                (default: New)
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td class="font-semibold">Notes</td>
-                                            <td>
-                                                <span class="badge badge-low">
-                                                    Optional
-                                                </span>
-                                            </td>
-                                            <td class="text-secondary">
-                                                Met at conference
-                                            </td>
-                                            <td class="text-muted text-xs"></td>
-                                        </tr>
+                                        <tr><td class="font-semibold text-accent">Name</td><td><span class="badge badge-high">Required</span></td><td class="text-secondary">John Smith</td><td class="text-muted text-xs">Full name of client</td></tr>
+                                        <tr><td class="font-semibold">Email</td><td><span class="badge badge-low">Optional</span></td><td class="text-secondary">john@company.com</td><td class="text-muted text-xs">Used for duplicate detection</td></tr>
+                                        <tr><td class="font-semibold">Company</td><td><span class="badge badge-low">Optional</span></td><td class="text-secondary">Acme Corp</td><td class="text-muted text-xs"></td></tr>
+                                        <tr><td class="font-semibold">Phone</td><td><span class="badge badge-low">Optional</span></td><td class="text-secondary">801-555-0100</td><td class="text-muted text-xs"></td></tr>
+                                        <tr><td class="font-semibold">Service</td><td><span class="badge badge-low">Optional</span></td><td class="text-secondary">AI Automation</td><td class="text-muted text-xs"></td></tr>
+                                        <tr><td class="font-semibold">Priority</td><td><span class="badge badge-low">Optional</span></td><td class="text-secondary">High</td><td class="text-muted text-xs">High / Medium / Low (default: Medium)</td></tr>
+                                        <tr><td class="font-semibold">Stage</td><td><span class="badge badge-low">Optional</span></td><td class="text-secondary">New</td><td class="text-muted text-xs">New / Contacted / etc (default: New)</td></tr>
+                                        <tr><td class="font-semibold">Notes</td><td><span class="badge badge-low">Optional</span></td><td class="text-secondary">Met at conference</td><td class="text-muted text-xs"></td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -333,129 +83,67 @@
                     </div>
                 </div>
 
-                <!-- ── Phase 2: Preview ───────────────────────── -->
+                <!-- Phase 2: Preview -->
                 <div id="phasePreview" class="hidden">
                     <div class="card mb-4">
                         <div class="card-header">
                             <div class="flex items-center gap-3">
-                                <svg width="18" height="18"
-                                     viewBox="0 0 20 20" fill="none"
-                                     stroke="currentColor" stroke-width="1.5">
-                                    <path stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2
-                                           2 0 01-2-2V5a2 2 0 012-2h5.586a1
-                                           1 0 01.707.293l5.414 5.414a1 1 0
-                                           01.293.707V19a2 2 0 01-2 2z"/>
+                                <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                                 </svg>
                                 <span class="card-title">Preview</span>
-                                <span class="text-muted text-sm"
-                                      id="previewFilename"></span>
+                                <span class="text-muted text-sm" id="previewFilename"></span>
                             </div>
-                            <button class="btn btn-ghost btn-sm"
-                                onclick="resetImport()">
-                                <svg width="14" height="14"
-                                     viewBox="0 0 20 20" fill="none"
-                                     stroke="currentColor" stroke-width="1.5">
-                                    <path stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        d="M15 19l-7-7 7-7"/>
+                            <button class="btn btn-ghost btn-sm" data-reset>
+                                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
                                 </svg>
                                 Change File
                             </button>
                         </div>
                         <div class="card-body">
-
-                            <!-- Preview Stats -->
-                            <div class="flex gap-3 mb-4"
-                                 style="flex-wrap:wrap">
+                            <div class="flex gap-3 mb-4" style="flex-wrap:wrap">
                                 <div class="import-stat" style="flex:1;min-width:110px">
-                                    <div class="import-stat-value text-accent"
-                                         id="previewTotal">0</div>
-                                    <div class="import-stat-label">
-                                        Valid Rows
-                                    </div>
+                                    <div class="import-stat-value text-accent" id="previewTotal">0</div>
+                                    <div class="import-stat-label">Valid Rows</div>
                                 </div>
                                 <div class="import-stat" style="flex:1;min-width:110px">
-                                    <div class="import-stat-value text-success"
-                                         id="previewCols">0</div>
-                                    <div class="import-stat-label">
-                                        Columns
-                                    </div>
+                                    <div class="import-stat-value text-success" id="previewCols">0</div>
+                                    <div class="import-stat-label">Columns</div>
                                 </div>
                                 <div class="import-stat" style="flex:1;min-width:110px">
-                                    <div class="import-stat-value text-error"
-                                         id="previewErrors">0</div>
-                                    <div class="import-stat-label">
-                                        Errors
-                                    </div>
+                                    <div class="import-stat-value text-error" id="previewErrors">0</div>
+                                    <div class="import-stat-label">Errors</div>
                                 </div>
                             </div>
 
-                            <!-- Detected Columns -->
                             <div class="mb-3">
-                                <div class="input-label mb-2">
-                                    Detected Columns
-                                </div>
-                                <div id="detectedCols"
-                                     class="flex gap-2"
-                                     style="flex-wrap:wrap"></div>
+                                <div class="input-label mb-2">Detected Columns</div>
+                                <div id="detectedCols" class="flex gap-2" style="flex-wrap:wrap"></div>
                             </div>
 
-                            <!-- Validation Errors -->
-                            <div id="validationErrorsSection"
-                                 class="hidden mb-3">
-                                <div class="input-label mb-1 text-error">
-                                    Validation Errors
-                                </div>
-                                <div id="validationErrors"
-                                     class="alert alert-error text-xs"
-                                     style="max-height:120px;overflow-y:auto"></div>
+                            <div id="validationErrorsSection" class="hidden mb-3">
+                                <div class="input-label mb-1 text-error">Validation Errors</div>
+                                <div id="validationErrors" class="alert alert-error text-xs" style="max-height:120px;overflow-y:auto"></div>
                             </div>
 
-                            <!-- Sample Data -->
                             <div class="mb-4">
-                                <div class="input-label mb-2">
-                                    Sample Data (first 5 rows)
-                                </div>
+                                <div class="input-label mb-2">Sample Data (first 5 rows)</div>
                                 <div class="table-wrapper">
-                                    <table class="table"
-                                           id="previewTable"></table>
+                                    <table class="table" id="previewTable"></table>
                                 </div>
                             </div>
 
-                            <!-- Options -->
-                            <label class="flex items-center gap-3 mb-4"
-                                   style="cursor:pointer;user-select:none">
-                                <input type="checkbox"
-                                       id="checkDuplicates"
-                                       checked
-                                       style="width:16px;height:16px;
-                                              accent-color:var(--accent-primary)">
-                                <span class="text-secondary text-sm">
-                                    Skip clients with duplicate emails
-                                    (recommended)
-                                </span>
+                            <label class="flex items-center gap-3 mb-4" style="cursor:pointer;user-select:none">
+                                <input type="checkbox" id="checkDuplicates" checked style="width:16px;height:16px;accent-color:var(--accent-primary)">
+                                <span class="text-secondary text-sm">Skip clients with duplicate emails (recommended)</span>
                             </label>
 
-                            <!-- Actions -->
                             <div class="flex gap-3">
-                                <button class="btn btn-secondary"
-                                    onclick="resetImport()">
-                                    Cancel
-                                </button>
-                                <button class="btn btn-primary btn-lg"
-                                    onclick="startImport()"
-                                    id="importBtn">
-                                    <svg width="16" height="16"
-                                         viewBox="0 0 20 20" fill="none"
-                                         stroke="currentColor"
-                                         stroke-width="1.5">
-                                        <path stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            d="M4 16v1a3 3 0 003 3h10a3
-                                               3 0 003-3v-1m-4-4l-4 4m0
-                                               0l-4-4m4 4V4"/>
+                                <button class="btn btn-secondary" id="cancelPreviewBtn">Cancel</button>
+                                <button class="btn btn-primary btn-lg" id="importBtn">
+                                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
                                     </svg>
                                     Import Clients
                                 </button>
@@ -464,158 +152,71 @@
                     </div>
                 </div>
 
-                <!-- ── Phase 3: Importing Live ────────────────── -->
+                <!-- Phase 3: Importing Live -->
                 <div id="phaseImporting" class="hidden">
                     <div class="card">
                         <div class="card-header">
                             <div class="flex items-center gap-3">
                                 <div class="loading-spinner sm"></div>
-                                <span class="card-title">
-                                    Importing...
-                                </span>
+                                <span class="card-title">Importing...</span>
                             </div>
                             <div class="flex items-center gap-2">
-                                <span class="text-accent font-bold text-lg"
-                                      id="liveCount">0</span>
+                                <span class="text-accent font-bold text-lg" id="liveCount">0</span>
                                 <span class="text-muted">/</span>
-                                <span class="text-muted"
-                                      id="liveTotal">0</span>
-                                <span class="text-muted text-sm">
-                                    clients
-                                </span>
+                                <span class="text-muted" id="liveTotal">0</span>
+                                <span class="text-muted text-sm">clients</span>
                             </div>
                         </div>
                         <div class="card-body">
-
-                            <!-- Progress bar -->
-                            <div class="progress-bar mb-3"
-                                 style="height:8px">
-                                <div class="progress-fill"
-                                     id="importProgress"
-                                     style="width:0%;transition:width 0.4s ease">
-                                </div>
+                            <div class="progress-bar mb-3" style="height:8px">
+                                <div class="progress-fill" id="importProgress" style="width:0%;transition:width 0.4s ease"></div>
                             </div>
-
-                            <div class="text-secondary text-sm mb-4"
-                                 id="liveStatus">
-                                Preparing...
-                            </div>
-
-                            <!-- Live Log -->
-                            <div id="liveLog"
-                                 style="max-height:320px;
-                                        overflow-y:auto;
-                                        font-family:var(--font-mono);
-                                        font-size:11px;
-                                        background:var(--bg-secondary);
-                                        border:1px solid var(--border);
-                                        border-radius:var(--radius-sm);
-                                        padding:12px;
-                                        display:flex;
-                                        flex-direction:column;
-                                        gap:3px;
-                                        line-height:1.6">
-                            </div>
+                            <div class="text-secondary text-sm mb-4" id="liveStatus">Preparing...</div>
+                            <div id="liveLog" style="max-height:320px;overflow-y:auto;font-family:var(--font-mono);font-size:11px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;display:flex;flex-direction:column;gap:3px;line-height:1.6"></div>
                         </div>
                     </div>
                 </div>
 
-                <!-- ── Phase 4: Results ───────────────────────── -->
+                <!-- Phase 4: Results -->
                 <div id="phaseResults" class="hidden">
                     <div class="card">
                         <div class="card-header">
                             <div class="flex items-center gap-3">
-                                <div style="width:28px;height:28px;
-                                            background:var(--success-bg);
-                                            border:1px solid var(--success-border);
-                                            border-radius:50%;
-                                            display:flex;align-items:center;
-                                            justify-content:center;
-                                            color:var(--success)">
-                                    <svg width="14" height="14"
-                                         viewBox="0 0 20 20" fill="none"
-                                         stroke="currentColor"
-                                         stroke-width="2">
-                                        <path stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            d="M5 13l4 4L19 7"/>
+                                <div style="width:28px;height:28px;background:var(--success-bg);border:1px solid var(--success-border);border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--success)">
+                                    <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
                                     </svg>
                                 </div>
-                                <span class="card-title">
-                                    Import Complete
-                                </span>
+                                <span class="card-title">Import Complete</span>
                             </div>
-                            <button class="btn btn-secondary btn-sm"
-                                onclick="resetImport()">
-                                Import Another File
-                            </button>
+                            <button class="btn btn-secondary btn-sm" data-reset>Import Another File</button>
                         </div>
                         <div class="card-body">
-
-                            <!-- Result Stats -->
-                            <div class="flex gap-3 mb-5"
-                                 style="flex-wrap:wrap">
-                                <div class="import-stat"
-                                     style="flex:1;min-width:120px;
-                                            background:var(--success-bg);
-                                            border-color:var(--success-border)">
-                                    <div class="import-stat-value text-success"
-                                         id="resultImported">0</div>
-                                    <div class="import-stat-label"
-                                         style="color:var(--success)">
-                                        Imported
-                                    </div>
+                            <div class="flex gap-3 mb-5" style="flex-wrap:wrap">
+                                <div class="import-stat" style="flex:1;min-width:120px;background:var(--success-bg);border-color:var(--success-border)">
+                                    <div class="import-stat-value text-success" id="resultImported">0</div>
+                                    <div class="import-stat-label" style="color:var(--success)">Imported</div>
                                 </div>
-                                <div class="import-stat"
-                                     style="flex:1;min-width:120px;
-                                            background:var(--warning-bg);
-                                            border-color:var(--warning-border)">
-                                    <div class="import-stat-value text-warning"
-                                         id="resultSkipped">0</div>
-                                    <div class="import-stat-label"
-                                         style="color:var(--warning)">
-                                        Skipped
-                                    </div>
+                                <div class="import-stat" style="flex:1;min-width:120px;background:var(--warning-bg);border-color:var(--warning-border)">
+                                    <div class="import-stat-value text-warning" id="resultSkipped">0</div>
+                                    <div class="import-stat-label" style="color:var(--warning)">Skipped</div>
                                 </div>
-                                <div class="import-stat"
-                                     style="flex:1;min-width:120px;
-                                            background:var(--error-bg);
-                                            border-color:var(--error-border)">
-                                    <div class="import-stat-value text-error"
-                                         id="resultFailed">0</div>
-                                    <div class="import-stat-label"
-                                         style="color:var(--error)">
-                                        Failed
-                                    </div>
+                                <div class="import-stat" style="flex:1;min-width:120px;background:var(--error-bg);border-color:var(--error-border)">
+                                    <div class="import-stat-value text-error" id="resultFailed">0</div>
+                                    <div class="import-stat-label" style="color:var(--error)">Failed</div>
                                 </div>
                             </div>
-
-                            <!-- Imported list -->
                             <div id="importedList" class="mb-4"></div>
-
-                            <!-- Skipped list -->
                             <div id="skippedList" class="mb-4"></div>
-
-                            <!-- Failed list -->
                             <div id="failedList" class="mb-4"></div>
-
                             <div class="flex gap-3">
-                                <a href="/aria/clients"
-                                   class="btn btn-primary">
+                                <a href="/aria/clients" class="btn btn-primary">
                                     View All Clients
-                                    <svg width="14" height="14"
-                                         viewBox="0 0 20 20" fill="none"
-                                         stroke="currentColor"
-                                         stroke-width="1.5">
-                                        <path stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            d="M9 5l7 7-7 7"/>
+                                    <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
                                     </svg>
                                 </a>
-                                <button class="btn btn-secondary"
-                                    onclick="resetImport()">
-                                    Import Another File
-                                </button>
+                                <button class="btn btn-secondary" data-reset>Import Another File</button>
                             </div>
                         </div>
                     </div>
@@ -625,489 +226,9 @@
         </div>
     </div>
 </div>
-
-<div class="toast-container" id="toastContainer"></div>
-
 <script src="/static/js/api.js"></script>
 <script src="/static/js/utils.js"></script>
 <script src="/static/js/nav.js"></script>
-<script>
-Nav.init();
-
-// ── State ──────────────────────────────────────────────
-let selectedFile    = null;
-let previewData     = null;
-let importedCount   = 0;
-let totalToImport   = 0;
-
-// ── Phase Switcher ─────────────────────────────────────
-function showPhase(phase) {
-    ['phaseUpload', 'phasePreview',
-     'phaseImporting', 'phaseResults'].forEach(id => {
-        document.getElementById(id).classList.add('hidden');
-    });
-    document.getElementById(phase).classList.remove('hidden');
-}
-
-function resetImport() {
-    selectedFile  = null;
-    previewData   = null;
-    importedCount = 0;
-    totalToImport = 0;
-    const fi = document.getElementById('fileInput');
-    if (fi) fi.value = '';
-    showPhase('phaseUpload');
-}
-
-// ── Drag & Drop ────────────────────────────────────────
-function handleDragOver(e) {
-    e.preventDefault();
-    document.getElementById('dropZone').classList.add('drag-over');
-}
-
-function handleDragLeave(e) {
-    document.getElementById('dropZone').classList.remove('drag-over');
-}
-
-function handleDrop(e) {
-    e.preventDefault();
-    document.getElementById('dropZone').classList.remove('drag-over');
-    const file = e.dataTransfer.files[0];
-    if (file) processFile(file);
-}
-
-function handleFileSelect(e) {
-    const file = e.target.files[0];
-    if (file) processFile(file);
-}
-
-// ── File Validation ────────────────────────────────────
-function processFile(file) {
-    const ext = file.name.toLowerCase().split('.').pop();
-    if (!['xlsx', 'xls', 'csv'].includes(ext)) {
-        Toast.error('File must be .xlsx, .xls, or .csv');
-        return;
-    }
-
-    const maxSize = 25 * 1024 * 1024; // 25 MB
-    if (file.size > maxSize) {
-        Toast.error('File too large. Maximum 25 MB.');
-        return;
-    }
-
-    selectedFile = file;
-    previewFile(file);
-}
-
-// ── Preview ────────────────────────────────────────────
-async function previewFile(file) {
-    showPhase('phasePreview');
-
-    document.getElementById('previewFilename').textContent =
-        file.name;
-    document.getElementById('previewTotal').textContent = '...';
-    document.getElementById('previewCols').textContent  = '...';
-    document.getElementById('previewErrors').textContent = '...';
-    document.getElementById('detectedCols').innerHTML   = '';
-    document.getElementById('previewTable').innerHTML   = '';
-    document.getElementById('validationErrorsSection')
-        .classList.add('hidden');
-
-    try {
-        const formData = new FormData();
-        formData.append('file', file);
-
-        const rawRes = await API.upload(
-            'POST',
-            '/clients/import/preview',
-            formData
-        );
-
-        let data;
-        try {
-            data = await rawRes.json();
-        } catch {
-            throw new Error('Invalid response from server');
-        }
-
-        if (!rawRes.ok) {
-            throw new Error(data.detail || 'Preview failed');
-        }
-
-        previewData = data;
-        renderPreview(data);
-
-    } catch (e) {
-        Toast.error('Preview failed: ' + e.message);
-        resetImport();
-    }
-}
-
-function renderPreview(data) {
-    document.getElementById('previewTotal').textContent =
-        data.total_valid_rows ?? 0;
-    document.getElementById('previewCols').textContent =
-        (data.detected_columns || []).length;
-    document.getElementById('previewErrors').textContent =
-        (data.validation_errors || []).length;
-
-    // Detected columns as badges
-    document.getElementById('detectedCols').innerHTML =
-        (data.detected_columns || []).map(c =>
-            `<span class="badge badge-stage">${escapeHtml(c)}</span>`
-        ).join('');
-
-    // Validation errors
-    const errSection = document.getElementById(
-        'validationErrorsSection'
-    );
-    if ((data.validation_errors || []).length) {
-        errSection.classList.remove('hidden');
-        document.getElementById('validationErrors').innerHTML =
-            data.validation_errors.map(e =>
-                `<div style="padding:2px 0">
-                    ⚠ ${escapeHtml(e)}
-                </div>`
-            ).join('');
-    } else {
-        errSection.classList.add('hidden');
-    }
-
-    // Sample table
-    const samples = data.sample_rows || [];
-    if (samples.length) {
-        const cols = Object.keys(samples[0]);
-        document.getElementById('previewTable').innerHTML = `
-            <thead>
-                <tr>
-                    ${cols.map(c =>
-                        `<th>${escapeHtml(c)}</th>`
-                    ).join('')}
-                </tr>
-            </thead>
-            <tbody>
-                ${samples.map(row => `
-                    <tr>
-                        ${cols.map(c =>
-                            `<td class="text-xs">
-                                ${escapeHtml(
-                                    String(row[c] ?? '—')
-                                )}
-                            </td>`
-                        ).join('')}
-                    </tr>
-                `).join('')}
-            </tbody>
-        `;
-    }
-
-    // Import button label
-    const importBtn = document.getElementById('importBtn');
-    importBtn.disabled = !data.ready_to_import;
-    importBtn.innerHTML = `
-        <svg width="16" height="16" viewBox="0 0 20 20" fill="none"
-             stroke="currentColor" stroke-width="1.5">
-            <path stroke-linecap="round" stroke-linejoin="round"
-                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-        </svg>
-        Import ${data.total_valid_rows ?? 0} Clients
-    `;
-
-    if (!data.ready_to_import) {
-        Toast.error(
-            'File has no valid rows to import. ' +
-            'Check the validation errors above.'
-        );
-    }
-}
-
-// ── Live Streaming Import ──────────────────────────────
-async function startImport() {
-    if (!selectedFile) return;
-
-    showPhase('phaseImporting');
-
-    importedCount = 0;
-    totalToImport = previewData?.total_valid_rows || 0;
-
-    // Reset UI
-    document.getElementById('importProgress').style.width = '0%';
-    document.getElementById('liveCount').textContent     = '0';
-    document.getElementById('liveTotal').textContent     = totalToImport;
-    document.getElementById('liveStatus').textContent    = 'Starting...';
-    document.getElementById('liveLog').innerHTML         = '';
-
-    const checkDups = document.getElementById('checkDuplicates').checked;
-    const formData  = new FormData();
-    formData.append('file', selectedFile);
-
-    try {
-        const res = await API.upload(
-            'POST',
-            `/clients/import/stream?check_duplicates=${checkDups}`,
-            formData
-        );
-
-        if (!res.ok) {
-            let detail = `Import failed: ${res.status}`;
-            try {
-                const err = await res.json();
-                detail = err.detail || detail;
-            } catch { /* ignore */ }
-            throw new Error(detail);
-        }
-
-        // Read SSE stream
-        const reader  = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer    = '';
-        let finalData = null;
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n');
-            buffer = lines.pop(); // keep incomplete line
-
-            for (const line of lines) {
-                if (!line.startsWith('data: ')) continue;
-                try {
-                    const event = JSON.parse(line.slice(6));
-                    handleStreamEvent(event);
-                    if (event.type === 'complete') {
-                        finalData = event;
-                    }
-                } catch { /* skip malformed */ }
-            }
-        }
-
-        await sleep(400);
-
-        if (finalData) {
-            showResults(finalData);
-        } else {
-            Toast.error('Import stream ended unexpectedly');
-            showPhase('phasePreview');
-        }
-
-    } catch (e) {
-        Toast.error('Import failed: ' + e.message);
-        showPhase('phasePreview');
-    }
-}
-
-function handleStreamEvent(event) {
-    const statusEl   = document.getElementById('liveStatus');
-    const progressEl = document.getElementById('importProgress');
-    const countEl    = document.getElementById('liveCount');
-    const logEl      = document.getElementById('liveLog');
-
-    switch (event.type) {
-
-        case 'start':
-            statusEl.textContent = event.message || 'Starting...';
-            logEl.innerHTML += `
-                <div style="color:var(--accent-primary)">
-                    ▶ ${escapeHtml(event.message || '')}
-                </div>`;
-            break;
-
-        case 'progress':
-            statusEl.textContent = event.message || '';
-            if (event.percent) {
-                progressEl.style.width = event.percent + '%';
-            }
-            logEl.innerHTML += `
-                <div style="color:var(--text-muted)">
-                    ⟳ ${escapeHtml(event.message || '')}
-                </div>`;
-            logEl.scrollTop = logEl.scrollHeight;
-            break;
-
-        case 'client_added': {
-            importedCount++;
-            countEl.textContent = importedCount;
-
-            // Progress 20–90% during imports
-            const pct = Math.min(
-                90,
-                20 + Math.round(
-                    (importedCount / Math.max(totalToImport, 1)) * 70
-                )
-            );
-            progressEl.style.width = pct + '%';
-
-            const c = event.client || {};
-            logEl.innerHTML += `
-                <div style="color:var(--success)">
-                    ✓ ${escapeHtml(c.name || '?')}
-                    <span style="color:var(--text-muted);margin-left:6px">
-                        ${escapeHtml(c.client_id || '')}
-                    </span>
-                    ${c.email
-                        ? `<span style="color:var(--text-muted);
-                                        margin-left:6px">
-                               ${escapeHtml(c.email)}
-                           </span>`
-                        : ''}
-                </div>`;
-            logEl.scrollTop = logEl.scrollHeight;
-            break;
-        }
-
-        case 'client_skipped': {
-            const s = event.client || {};
-            logEl.innerHTML += `
-                <div style="color:var(--warning)">
-                    ⊘ ${escapeHtml(s.name || '?')} — skipped
-                    ${s.reason
-                        ? `<span style="opacity:0.7">
-                               (${escapeHtml(s.reason)})
-                           </span>`
-                        : ''}
-                </div>`;
-            logEl.scrollTop = logEl.scrollHeight;
-            break;
-        }
-
-        case 'client_failed': {
-            const f = event.client || {};
-            logEl.innerHTML += `
-                <div style="color:var(--error)">
-                    ✗ ${escapeHtml(f.name || '?')} — failed
-                    ${f.error
-                        ? `<span style="opacity:0.7">
-                               (${escapeHtml(f.error)})
-                           </span>`
-                        : ''}
-                </div>`;
-            logEl.scrollTop = logEl.scrollHeight;
-            break;
-        }
-
-        case 'complete':
-            progressEl.style.width = '100%';
-            statusEl.textContent   = event.message || 'Complete!';
-            logEl.innerHTML += `
-                <div style="color:var(--accent-primary);
-                            font-weight:600;margin-top:6px">
-                    🎉 ${escapeHtml(event.message || 'Import complete!')}
-                </div>`;
-            logEl.scrollTop = logEl.scrollHeight;
-            break;
-
-        case 'error':
-            logEl.innerHTML += `
-                <div style="color:var(--error)">
-                    ✗ Error: ${escapeHtml(event.message || '')}
-                </div>`;
-            logEl.scrollTop = logEl.scrollHeight;
-            break;
-    }
-}
-
-// ── Show Results ───────────────────────────────────────
-function showResults(data) {
-    showPhase('phaseResults');
-
-    document.getElementById('resultImported').textContent =
-        data.imported ?? 0;
-    document.getElementById('resultSkipped').textContent =
-        data.skipped  ?? 0;
-    document.getElementById('resultFailed').textContent =
-        data.failed   ?? 0;
-
-    // Imported clients table
-    const imported = data.imported_clients || [];
-    document.getElementById('importedList').innerHTML =
-        imported.length ? `
-            <div class="font-semibold text-success mb-2 mt-2">
-                <svg width="14" height="14" viewBox="0 0 20 20" fill="none"
-                     stroke="currentColor" stroke-width="2"
-                     style="display:inline;margin-right:4px">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                        d="M5 13l4 4L19 7"/>
-                </svg>
-                Imported (${imported.length})
-            </div>
-            <div class="table-wrapper">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Client ID</th>
-                            <th>Email</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${imported.map(c => `
-                            <tr>
-                                <td class="font-semibold">
-                                    ${escapeHtml(c.name || '')}
-                                </td>
-                                <td class="text-accent text-xs">
-                                    ${escapeHtml(c.client_id || '')}
-                                </td>
-                                <td class="text-muted text-xs">
-                                    ${escapeHtml(c.email || '—')}
-                                </td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-        ` : '';
-
-    // Skipped clients
-    const skipped = data.skipped_clients || [];
-    document.getElementById('skippedList').innerHTML =
-        skipped.length ? `
-            <div class="font-semibold text-warning mb-2 mt-4">
-                ⊘ Skipped — Duplicates (${skipped.length})
-            </div>
-            <div style="font-size:12px">
-                ${skipped.map(c => `
-                    <div style="padding:3px 0;
-                                border-bottom:1px solid var(--border)">
-                        <span class="text-secondary">
-                            ${escapeHtml(c.name || '')}
-                        </span>
-                        <span class="text-muted ml-2">
-                            — ${escapeHtml(c.reason || 'duplicate')}
-                        </span>
-                    </div>
-                `).join('')}
-            </div>
-        ` : '';
-
-    // Failed clients
-    const failed = data.failed_clients || [];
-    document.getElementById('failedList').innerHTML =
-        failed.length ? `
-            <div class="font-semibold text-error mb-2 mt-4">
-                ✗ Failed (${failed.length})
-            </div>
-            <div style="font-size:12px">
-                ${failed.map(c => `
-                    <div style="padding:3px 0;
-                                border-bottom:1px solid var(--border)">
-                        <span class="text-secondary">
-                            ${escapeHtml(c.name || '')}
-                        </span>
-                        <span class="text-error ml-2">
-                            — ${escapeHtml(c.error || 'unknown error')}
-                        </span>
-                    </div>
-                `).join('')}
-            </div>
-        ` : '';
-
-    Toast.success(
-        `Import done! ${data.imported ?? 0} clients added.`
-    );
-}
-</script>
+<script src="/static/js/import.js"></script>
 </body>
 </html>
