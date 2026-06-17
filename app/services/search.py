@@ -6,7 +6,7 @@ from app.services.llm import generate_json, safe_str
 logger = get_logger(__name__)
 
 # Cap clients sent to LLM to avoid token limits
-MAX_SEARCH_CLIENTS = None
+MAX_SEARCH_CLIENTS = 100000
 MAX_PATTERN_CLIENTS = 200
 MAX_FORECAST_CLIENTS = 200
 
