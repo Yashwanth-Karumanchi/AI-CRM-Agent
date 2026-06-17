@@ -463,7 +463,7 @@ async def get_all_clients(
     client_id: Optional[str] = None,
     email: Optional[str] = None,
     include_archived: bool = False,
-    limit: int = 20
+    limit: int = 1000
 ) -> List[dict]:
     """Get clients with optional filtering"""
     records = await _get_all_records()

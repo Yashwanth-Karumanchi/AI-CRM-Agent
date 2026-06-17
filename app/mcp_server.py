@@ -45,7 +45,7 @@ class FindClientsInput(BaseModel):
     email:     Optional[str] = None
     stage:     Optional[str] = None
     priority:  Optional[str] = None
-    limit:     int           = 20
+    limit:     int           = 1000
 
 
 class UpdateStageInput(BaseModel):

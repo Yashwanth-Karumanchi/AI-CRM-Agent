@@ -20,7 +20,7 @@ async function loadDashboard() {
         const [pipeline, followups, activities] = await Promise.all([
             API.get('/pipeline'),
             API.get('/followups/due'),
-            API.get('/activities?limit=None')
+            API.get('/activities?limit=10')
         ]);
 
         // Stats

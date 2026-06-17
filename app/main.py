@@ -302,7 +302,7 @@ async def list_clients(
     client_id:        Optional[str]  = Query(None),
     email:            Optional[str]  = Query(None),
     include_archived: bool           = Query(False),
-    limit:            int            = Query(20, ge=1, le=500),
+    limit:            int            = Query(20, ge=1, le=1000),
     username:         str            = Depends(verify_credentials)
 ):
     """Search and filter clients"""
@@ -727,7 +727,7 @@ async def get_client_activity(
 async def search_activities(
     activity_type: Optional[str] = Query(None),
     client_id:     Optional[str] = Query(None),
-    limit:         int           = Query(50, ge=1, le=200),
+    limit:         int           = Query(50, ge=1, le=1000),
     username:      str           = Depends(verify_credentials)
 ):
     """Search all activities"""
@@ -1628,7 +1628,7 @@ async def weekly_report(
     """Download weekly performance report"""
     try:
         clients      = await sheets.get_all_clients(limit=1000)
-        activities   = await sheets.search_activities(limit=500)
+        activities   = await sheets.search_activities(limit=1000)
         pipeline     = await sheets.get_pipeline_summary()
         report_bytes = generate_weekly_report(
             clients, activities, pipeline
