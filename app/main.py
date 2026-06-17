@@ -2229,15 +2229,7 @@ async def aria_chat(
                 f"{ctx['lastCompletedAction']}\n"
             )
             
-        I can see both issues clearly now:
-Image 1 — "analyze it" passes fine (good, history check works)
-
-Image 2 — "give python code to reverse a string" is getting through because there's conversation history, so len(data.history) > 0 auto-passes it. The firewall is being bypassed by the very rule meant to fix it.
-The problem is the auto-pass logic is too broad. Having history doesn't mean the message is CRM-related.
-
-The real fix — smarter auto-pass
-Replace the entire firewall block with this:
-python        # ── Topic Firewall ─────────────────────────────
+        # ── Topic Firewall ─────────────────────────────
         msg_lower_fw = data.message.lower().strip()
 
         # Only auto-pass messages that are clearly
