@@ -1,5 +1,6 @@
 import os
 import base64
+import re
 import json
 import asyncio
 from typing import List
@@ -18,6 +19,58 @@ SCOPES = [
     "https://www.googleapis.com/auth/gmail.drafts",
     "https://www.googleapis.com/auth/gmail.modify"
 ]
+
+SENDER_NAME = "Yashwanth Karumanchi"
+
+
+def enforce_email_signature(body: str) -> str:
+    """
+    Ensure email ends with exactly one clean signature:
+    Best regards,
+    <sender name>
+
+    Handles duplicates like:
+    Best,
+    Aria
+
+    Best regards,
+    Aria
+    """
+    body = (body or "").strip()
+    default_sender = os.getenv("SENDER_NAME", "Aria").strip() or "Aria"
+
+    if not body:
+        return f"Best regards,\n{default_sender}"
+
+    sender_name = default_sender
+
+    # Remove trailing signature blocks repeatedly.
+    # Handles:
+    # Best,
+    # Aria
+    #
+    # Best regards,
+    # Aria
+    signature_pattern = re.compile(
+        r"(?is)\s*"
+        r"(best|best\s+regards|kind\s+regards|warm\s+regards|regards|sincerely|thanks|thank\s+you)"
+        r"\s*[,\.]?"
+        r"(?:\s*\n+\s*([A-Za-z][A-Za-z\s\.\-']{0,80}))?"
+        r"\s*$"
+    )
+
+    while True:
+        match = signature_pattern.search(body)
+        if not match:
+            break
+
+        found_name = match.group(2)
+        if found_name:
+            sender_name = found_name.strip()
+
+        body = body[:match.start()].strip()
+
+    return f"{body}\n\nBest regards,\n{sender_name}"
 
 # ── Cached service ─────────────────────────────────────
 _gmail_service = None
@@ -100,6 +153,8 @@ def _build_message(
     from_email: str
 ) -> dict:
     """Build a MIME email message"""
+    body = enforce_email_signature(body)
+
     message = MIMEMultipart("alternative")
     message["to"] = to
     message["from"] = from_email

@@ -118,7 +118,10 @@ async def analyze_document_content(
 
 async def draft_email(
     client: dict,
-    instruction: str
+    instruction: str,
+    sender_email: str = None,
+    sender_name: str = None,
+    **kwargs
 ) -> dict:
     """
     Draft a professional email for a client.
@@ -135,7 +138,12 @@ Rules:
 - Address the client by first name
 - Keep body under 300 words unless instruction says otherwise
 - No placeholders like [NAME] — use actual client data
-- Sign off with: Best regards, Yashwanth Karumanchi, yashwanthkarumanchi@gmail.com.
+- End the email exactly with:
+Best regards,
+<sender name>
+- Do not use "Best," or any other sign-off.
+- If the user says their name or says "my name is X", use X as the sender name.
+- Otherwise use: Aria
 
 Client:
 Name: {safe_str(client.get('name'))}

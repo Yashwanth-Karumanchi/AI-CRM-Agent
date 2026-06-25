@@ -1,0 +1,14 @@
+.env
+*.env
+credentials.json
+gmail_oauth.json
+token.json
+gmail_token*.json
+oauth_client.json
+__pycache__/
+*.pyc
+.git/
+.venv/
+venv/
+.env.local
+.DS_Store
